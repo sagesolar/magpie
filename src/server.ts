@@ -7,9 +7,24 @@ import { createBookRoutes } from './api/book.routes';
 import { BookUseCase } from './application/book.usecase';
 import { FirestoreBookRepository } from './infrastructure/firestore-book.repository';
 import { ExternalBookServiceImpl } from './infrastructure/external-book.service';
+import { logger } from './utils/logger';
 
 // Load environment variables
 dotenv.config();
+
+// Define error interface
+interface AppError extends Error {
+  name: string;
+  message: string;
+  status?: number;
+  issues?: unknown[];
+}
+
+interface ZodError extends Error {
+  name: 'ZodError';
+  errors?: unknown[];
+  issues?: unknown[];
+}
 
 class MagpieServer {
   private app: express.Application;
@@ -48,7 +63,7 @@ class MagpieServer {
 
     // Request logging
     this.app.use((req: Request, res: Response, next: NextFunction) => {
-      console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+      logger.info(`${req.method} ${req.path}`);
       next();
     });
 
@@ -82,14 +97,15 @@ class MagpieServer {
 
   private setupErrorHandling(): void {
     // Global error handler
-    this.app.use((error: any, req: Request, res: Response, next: NextFunction) => {
-      console.error('Error:', error);
+    this.app.use((error: AppError, req: Request, res: Response, _next: NextFunction) => {
+      logger.error('Error occurred', error);
 
       // Zod validation errors
       if (error.name === 'ZodError') {
+        const zodError = error as ZodError;
         return res.status(400).json({
           error: 'Validation error',
-          details: error.errors,
+          details: zodError.errors || zodError.issues,
         });
       }
 
@@ -119,19 +135,19 @@ class MagpieServer {
   public async start(): Promise<void> {
     try {
       this.app.listen(this.port, '0.0.0.0', () => {
-        console.log(`🐦 Magpie Book Collection Server running on port ${this.port}`);
-        console.log(`📚 API available at http://localhost:${this.port}/api`);
-        console.log(`🌐 PWA available at http://localhost:${this.port}`);
-        console.log(`🌐 Also accessible at http://127.0.0.1:${this.port}`);
+        logger.info(`🐦 Magpie Book Collection Server running on port ${this.port}`);
+        logger.info(`📚 API available at http://localhost:${this.port}/api`);
+        logger.info(`🌐 PWA available at http://localhost:${this.port}`);
+        logger.info(`🌐 Also accessible at http://127.0.0.1:${this.port}`);
       });
     } catch (error) {
-      console.error('Failed to start server:', error);
+      logger.error('Failed to start server', error);
       process.exit(1);
     }
   }
 
   public async shutdown(): Promise<void> {
-    console.log('Shutting down server...');
+    logger.info('Shutting down server...');
     await this.bookRepository.close();
     process.exit(0);
   }
@@ -145,4 +161,4 @@ process.on('SIGTERM', () => server.shutdown());
 process.on('SIGINT', () => server.shutdown());
 
 // Start the server
-server.start().catch(console.error);
+server.start().catch((error) => logger.error('Failed to start server', error));

@@ -5,6 +5,7 @@ import {
   DocumentData,
   QuerySnapshot,
   FieldValue,
+  Query,
 } from '@google-cloud/firestore';
 import * as admin from 'firebase-admin';
 import {
@@ -22,7 +23,7 @@ export class FirestoreBookRepository implements BookRepository {
   private db: Firestore;
   private collection: CollectionReference<DocumentData>;
 
-  constructor(projectId?: string, serviceAccountPath?: string, databaseId?: string) {
+  constructor(projectId?: string, serviceAccountPath?: string, _databaseId?: string) {
     // Initialize Firebase Admin if not already initialized
     if (!admin.apps.length) {
       const config: admin.AppOptions = {
@@ -131,7 +132,7 @@ export class FirestoreBookRepository implements BookRepository {
     sort?: BookSortOptions,
     pagination?: PaginationOptions
   ): Promise<PaginatedResult<Book>> {
-    let query = this.collection as any;
+    let query: Query<DocumentData> = this.collection;
 
     // Apply filters
     if (criteria?.genre) {
