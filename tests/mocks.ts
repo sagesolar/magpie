@@ -1,5 +1,13 @@
 // Mock implementations for testing
-import { Book, CreateBookDto, UpdateBookDto, BookSearchCriteria, BookSortOptions, PaginationOptions, PaginatedResult } from '../src/domain/book.types';
+import {
+  Book,
+  CreateBookDto,
+  UpdateBookDto,
+  BookSearchCriteria,
+  BookSortOptions,
+  PaginationOptions,
+  PaginatedResult,
+} from '../src/domain/book.types';
 import { BookRepository, ExternalBookService } from '../src/infrastructure/interfaces';
 
 export class MockBookRepository implements BookRepository {
@@ -34,10 +42,11 @@ export class MockBookRepository implements BookRepository {
     // Apply search criteria
     if (criteria?.query) {
       const query = criteria.query.toLowerCase();
-      filteredBooks = filteredBooks.filter(book =>
-        book.title.toLowerCase().includes(query) ||
-        book.authors.some(author => author.toLowerCase().includes(query)) ||
-        book.isbn.includes(query)
+      filteredBooks = filteredBooks.filter(
+        book =>
+          book.title.toLowerCase().includes(query) ||
+          book.authors.some(author => author.toLowerCase().includes(query)) ||
+          book.isbn.includes(query)
       );
     }
 
@@ -120,10 +129,11 @@ export class MockBookRepository implements BookRepository {
 
   async search(query: string): Promise<Book[]> {
     const lowerQuery = query.toLowerCase();
-    return this.books.filter(book =>
-      book.title.toLowerCase().includes(lowerQuery) ||
-      book.authors.some(author => author.toLowerCase().includes(lowerQuery)) ||
-      book.isbn.includes(query)
+    return this.books.filter(
+      book =>
+        book.title.toLowerCase().includes(lowerQuery) ||
+        book.authors.some(author => author.toLowerCase().includes(lowerQuery)) ||
+        book.isbn.includes(query)
     );
   }
 

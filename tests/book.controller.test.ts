@@ -17,31 +17,36 @@ describe('BookController API', () => {
     mockRepository = new MockBookRepository();
     mockExternalService = new MockExternalBookService();
     bookUseCase = new BookUseCase(mockRepository, mockExternalService);
-    
+
     const bookController = new BookController(bookUseCase);
-    
+
     // Create Express app for testing
     app = express();
     app.use(express.json());
     app.use('/api', createBookRoutes(bookController));
-    
+
     // Error handler
-    app.use((error: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-      if (error.name === 'ZodError') {
-        return res.status(400).json({
-          error: 'Validation error',
-          details: error.errors,
-        });
+    app.use(
+      (error: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+        if (error.name === 'ZodError') {
+          return res.status(400).json({
+            error: 'Validation error',
+            details: error.errors,
+          });
+        }
+
+        if (error.message) {
+          const statusCode = error.message.includes('not found')
+            ? 404
+            : error.message.includes('already exists')
+              ? 409
+              : 400;
+          return res.status(statusCode).json({ error: error.message });
+        }
+
+        res.status(500).json({ error: 'Internal server error' });
       }
-      
-      if (error.message) {
-        const statusCode = error.message.includes('not found') ? 404 : 
-                          error.message.includes('already exists') ? 409 : 400;
-        return res.status(statusCode).json({ error: error.message });
-      }
-      
-      res.status(500).json({ error: 'Internal server error' });
-    });
+    );
   });
 
   afterEach(() => {
@@ -171,9 +176,7 @@ describe('BookController API', () => {
     };
 
     it('should create a new book', async () => {
-      const response = await request(app)
-        .post('/api/books')
-        .send(validBookData);
+      const response = await request(app).post('/api/books').send(validBookData);
 
       expect(response.status).toBe(201);
       expect(response.body.isbn).toBe(validBookData.isbn);
@@ -182,20 +185,16 @@ describe('BookController API', () => {
 
     it('should return 400 for invalid data', async () => {
       const invalidData = { ...validBookData, publishingYear: 'invalid' };
-      
-      const response = await request(app)
-        .post('/api/books')
-        .send(invalidData);
+
+      const response = await request(app).post('/api/books').send(invalidData);
 
       expect(response.status).toBe(400);
     });
 
     it('should return 409 for duplicate ISBN', async () => {
       await request(app).post('/api/books').send(validBookData);
-      
-      const response = await request(app)
-        .post('/api/books')
-        .send(validBookData);
+
+      const response = await request(app).post('/api/books').send(validBookData);
 
       expect(response.status).toBe(409);
       expect(response.body.error).toBe('Book with this ISBN already exists');
@@ -220,9 +219,7 @@ describe('BookController API', () => {
         genre: 'Updated Genre',
       };
 
-      const response = await request(app)
-        .put('/api/books/1111111111111')
-        .send(updateData);
+      const response = await request(app).put('/api/books/1111111111111').send(updateData);
 
       expect(response.status).toBe(200);
       expect(response.body.title).toBe('Updated Title');
@@ -359,9 +356,7 @@ describe('BookController API', () => {
         loanedDate: new Date().toISOString(),
       };
 
-      const response = await request(app)
-        .put('/api/books/1111111111111/loan')
-        .send({ loanStatus });
+      const response = await request(app).put('/api/books/1111111111111/loan').send({ loanStatus });
 
       expect(response.status).toBe(200);
       expect(response.body.loanStatus.isLoaned).toBe(true);

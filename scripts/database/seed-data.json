@@ -1,0 +1,122 @@
+[
+  {
+    "isbn": "9780134685991",
+    "title": "Effective TypeScript: 62 Specific Ways to Improve Your TypeScript",
+    "authors": ["Dan Vanderkam"],
+    "publisher": "O'Reilly Media",
+    "edition": "1st Edition",
+    "publishingYear": 2019,
+    "pages": 264,
+    "genre": "Technology",
+    "description": "TypeScript is a typed superset of JavaScript with the potential to solve many of the headaches for which JavaScript is famous. But TypeScript has its own complexities and pitfalls, and this book helps you navigate them.",
+    "coverImageUrl": "https://m.media-amazon.com/images/I/81sJB+PbfEL._SY342_.jpg",
+    "goodreadsLink": "https://www.goodreads.com/book/show/48570456-effective-typescript",
+    "physicalLocation": "Tech Shelf A-1",
+    "condition": "excellent",
+    "notes": "Great reference for TypeScript best practices",
+    "isFavourite": true,
+    "type": "reference",
+    "loanStatus": {
+      "isLoaned": false,
+      "loanedTo": "",
+      "loanedDate": null,
+      "expectedReturnDate": null
+    }
+  },
+  {
+    "isbn": "9781492040323",
+    "title": "Architecture Patterns with Python",
+    "authors": ["Harry Percival", "Bob Gregory"],
+    "publisher": "O'Reilly Media",
+    "edition": "1st Edition",
+    "publishingYear": 2020,
+    "pages": 304,
+    "genre": "Technology",
+    "description": "Learn how to build maintainable Python applications with TDD, DDD, and event-driven architecture.",
+    "coverImageUrl": "https://learning.oreilly.com/library/cover/9781492052197/250w/",
+    "goodreadsLink": "",
+    "physicalLocation": "Tech Shelf A-2",
+    "condition": "good",
+    "notes": "Excellent patterns for Python applications",
+    "isFavourite": false,
+    "type": "reference",
+    "loanStatus": {
+      "isLoaned": false,
+      "loanedTo": "",
+      "loanedDate": null,
+      "expectedReturnDate": null
+    }
+  },
+  {
+    "isbn": "9780008471286",
+    "title": "The Lord of the Rings",
+    "authors": ["J.R.R. Tolkien"],
+    "publisher": "Harper Collins",
+    "edition": "One Volume Edition",
+    "publishingYear": 1954,
+    "pages": 1216,
+    "genre": "Fantasy",
+    "description": "A hobbit embarks on an epic quest to destroy a powerful ring and save Middle-earth from the Dark Lord Sauron. This tale of friendship, courage, and sacrifice has become one of the most beloved fantasy epics of all time.",
+    "coverImageUrl": "https://m.media-amazon.com/images/I/7125+5E40JL._SY342_.jpg",
+    "goodreadsLink": "https://www.goodreads.com/book/show/33.The_Lord_of_the_Rings",
+    "physicalLocation": "Fiction Shelf B-1",
+    "condition": "good",
+    "notes": "Classic fantasy trilogy in one volume",
+    "isFavourite": true,
+    "type": "novel",
+    "loanStatus": {
+      "isLoaned": false,
+      "loanedTo": "",
+      "loanedDate": null,
+      "expectedReturnDate": null
+    }
+  },
+  {
+    "isbn": "9780345404473",
+    "title": "Do Androids Dream of Electric Sheep?",
+    "authors": ["Philip K. Dick"],
+    "publisher": "Del Rey",
+    "edition": "Reprint Edition",
+    "publishingYear": 1968,
+    "pages": 244,
+    "genre": "Science Fiction",
+    "description": "In a post-apocalyptic future, bounty hunter Rick Deckard is tasked with hunting down and 'retiring' six escaped Nexus-6 androids on Earth. As he pursues them, he begins to question what makes someone human in this dystopian world.",
+    "coverImageUrl": "https://m.media-amazon.com/images/I/81jS8OhL9PL._SY342_.jpg",
+    "goodreadsLink": "https://www.goodreads.com/book/show/7083.Do_Androids_Dream_of_Electric_Sheep_",
+    "physicalLocation": "Fiction Shelf B-2",
+    "condition": "excellent",
+    "notes": "The inspiration for Blade Runner",
+    "isFavourite": true,
+    "type": "novel",
+    "loanStatus": {
+      "isLoaned": false,
+      "loanedTo": "",
+      "loanedDate": null,
+      "expectedReturnDate": null
+    }
+  },
+  {
+    "isbn": "9780735219090",
+    "title": "Where the Crawdads Sing",
+    "authors": ["Delia Owens"],
+    "publisher": "G.P. Putnam's Sons",
+    "edition": "Hardcover Edition",
+    "publishingYear": 2018,
+    "pages": 384,
+    "genre": "Literary Fiction",
+    "description": "For years, rumors of the 'Marsh Girl' have haunted Barkley Cove, a quiet town on the North Carolina coast. When handsome Chase Andrews is found dead, locals immediately suspect Kya Clark. A story of coming-of-age, murder mystery, and nature's beauty.",
+    "coverImageUrl": "https://m.media-amazon.com/images/I/81F0NTrPdCL._SY342_.jpg",
+    "goodreadsLink": "https://www.goodreads.com/book/show/36809135-where-the-crawdads-sing",
+    "physicalLocation": "Fiction Shelf C-1",
+    "condition": "excellent",
+    "notes": "#1 New York Times Bestseller, Reese's Book Club Pick",
+    "isFavourite": true,
+    "type": "novel",
+    "loanStatus": {
+      "isLoaned": false,
+      "loanedTo": "",
+      "loanedDate": null,
+      "expectedReturnDate": null
+    }
+  }
+]

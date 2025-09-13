@@ -1,0 +1,24 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Books collection
+    match /books/{isbn} {
+      // Allow read/write for now (adjust based on your auth requirements)
+      allow read, write: if true;
+      
+      // For production with authentication:
+      // allow read, write: if request.auth != null;
+    }
+    
+    // System metadata collection (for app configuration)
+    match /system/{document} {
+      allow read: if true;
+      allow write: if false; // Only allow writes through admin/setup scripts
+    }
+    
+    // Analytics collection (optional)
+    match /analytics/{document} {
+      allow read, write: if true;
+    }
+  }
+}

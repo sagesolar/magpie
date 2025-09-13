@@ -1,15 +1,18 @@
 // API service for communication with backend
 class APIService {
   constructor() {
-    this.baseUrl = '/api';
+    // Use environment variable or fallback to relative path for development
+    this.baseUrl = (typeof __API_BASE_URL__ !== 'undefined' ? __API_BASE_URL__ : '') + '/api';
     this.isOnline = navigator.onLine;
-    
+
+    console.log('API Base URL:', this.baseUrl);
+
     // Listen for online/offline events
     window.addEventListener('online', () => {
       this.isOnline = true;
       this.syncOfflineChanges();
     });
-    
+
     window.addEventListener('offline', () => {
       this.isOnline = false;
     });
@@ -20,18 +23,18 @@ class APIService {
     const config = {
       headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...options.headers,
       },
-      ...options
+      ...options,
     };
 
     try {
       const response = await fetch(url, config);
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       return await response.json();
     } catch (error) {
       if (!this.isOnline) {
@@ -55,20 +58,20 @@ class APIService {
   async createBook(book) {
     return this.request('/books', {
       method: 'POST',
-      body: JSON.stringify(book)
+      body: JSON.stringify(book),
     });
   }
 
   async updateBook(isbn, book) {
     return this.request(`/books/${isbn}`, {
       method: 'PUT',
-      body: JSON.stringify(book)
+      body: JSON.stringify(book),
     });
   }
 
   async deleteBook(isbn) {
     return this.request(`/books/${isbn}`, {
-      method: 'DELETE'
+      method: 'DELETE',
     });
   }
 
@@ -82,14 +85,14 @@ class APIService {
 
   async toggleFavourite(isbn) {
     return this.request(`/books/${isbn}/favourite`, {
-      method: 'PUT'
+      method: 'PUT',
     });
   }
 
   async updateLoanStatus(isbn, loanData) {
     return this.request(`/books/${isbn}/loan`, {
       method: 'PUT',
-      body: JSON.stringify(loanData)
+      body: JSON.stringify(loanData),
     });
   }
 
@@ -104,7 +107,7 @@ class APIService {
       for (const change of changes) {
         try {
           let result;
-          
+
           switch (change.action) {
             case 'create':
               result = await this.createBook(change.data);
@@ -119,7 +122,7 @@ class APIService {
 
           // Mark as synced
           await bookDB.markChangeAsSynced(change.id);
-          
+
           // Update local copy with server response
           if (change.action !== 'delete' && result) {
             const localBook = await bookDB.getBook(change.isbn);
@@ -129,7 +132,6 @@ class APIService {
               await bookDB.saveBook(localBook);
             }
           }
-          
         } catch (error) {
           console.error(`Failed to sync change ${change.id}:`, error);
           // Continue with other changes
@@ -138,12 +140,13 @@ class APIService {
 
       // Clean up synced changes
       await bookDB.clearSyncedChanges();
-      
+
       // Dispatch sync complete event
-      window.dispatchEvent(new CustomEvent('syncComplete', {
-        detail: { syncedCount: changes.length }
-      }));
-      
+      window.dispatchEvent(
+        new CustomEvent('syncComplete', {
+          detail: { syncedCount: changes.length },
+        })
+      );
     } catch (error) {
       console.error('Sync failed:', error);
     }

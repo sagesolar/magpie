@@ -5,6 +5,7 @@ import {
   DocumentData,
   QuerySnapshot,
   FieldValue,
+  Query,
 } from '@google-cloud/firestore';
 import * as admin from 'firebase-admin';
 import {
@@ -22,7 +23,7 @@ export class FirestoreBookRepository implements BookRepository {
   private db: Firestore;
   private collection: CollectionReference<DocumentData>;
 
-  constructor(projectId?: string, serviceAccountPath?: string) {
+  constructor(projectId?: string, serviceAccountPath?: string, _databaseId?: string) {
     // Initialize Firebase Admin if not already initialized
     if (!admin.apps.length) {
       const config: admin.AppOptions = {
@@ -42,9 +43,13 @@ export class FirestoreBookRepository implements BookRepository {
       admin.initializeApp(config);
     }
 
+    // Use specific database if provided
     this.db = admin.firestore();
+
+    // Note: For named databases, you would typically configure this at the app level
+    // For now, we'll use environment variables to determine the project/database
     this.collection = this.db.collection('books');
-    
+
     // Configure Firestore settings
     this.db.settings({
       ignoreUndefinedProperties: true,
@@ -99,26 +104,26 @@ export class FirestoreBookRepository implements BookRepository {
   async create(book: CreateBookDto): Promise<Book> {
     const bookData = this.bookToFirestore(book);
     bookData.createdAt = FieldValue.serverTimestamp();
-    
+
     const docRef = this.collection.doc(book.isbn);
     await docRef.set(bookData);
-    
+
     // Fetch the created document to get server timestamps
     const doc = await docRef.get();
     if (!doc.exists) {
       throw new Error('Failed to create book');
     }
-    
+
     return this.firestoreToBook(doc.id, doc.data()!);
   }
 
   async findById(isbn: string): Promise<Book | null> {
     const doc = await this.collection.doc(isbn).get();
-    
+
     if (!doc.exists) {
       return null;
     }
-    
+
     return this.firestoreToBook(doc.id, doc.data()!);
   }
 
@@ -127,7 +132,7 @@ export class FirestoreBookRepository implements BookRepository {
     sort?: BookSortOptions,
     pagination?: PaginationOptions
   ): Promise<PaginatedResult<Book>> {
-    let query = this.collection as any;
+    let query: Query<DocumentData> = this.collection;
 
     // Apply filters
     if (criteria?.genre) {
@@ -162,20 +167,19 @@ export class FirestoreBookRepository implements BookRepository {
     }
 
     const snapshot: QuerySnapshot = await query.get();
-    const books = snapshot.docs.map(doc => 
-      this.firestoreToBook(doc.id, doc.data())
-    );
+    const books = snapshot.docs.map(doc => this.firestoreToBook(doc.id, doc.data()));
 
     // Apply text search filter (Firestore doesn't have full-text search built-in)
     let filteredBooks = books;
     if (criteria?.query) {
       const searchTerm = criteria.query.toLowerCase();
-      filteredBooks = books.filter(book =>
-        book.title.toLowerCase().includes(searchTerm) ||
-        book.authors.some(author => author.toLowerCase().includes(searchTerm)) ||
-        book.isbn.toLowerCase().includes(searchTerm) ||
-        book.publisher.toLowerCase().includes(searchTerm) ||
-        (book.genre && book.genre.toLowerCase().includes(searchTerm))
+      filteredBooks = books.filter(
+        book =>
+          book.title.toLowerCase().includes(searchTerm) ||
+          book.authors.some(author => author.toLowerCase().includes(searchTerm)) ||
+          book.isbn.toLowerCase().includes(searchTerm) ||
+          book.publisher.toLowerCase().includes(searchTerm) ||
+          (book.genre && book.genre.toLowerCase().includes(searchTerm))
       );
     }
 
@@ -195,14 +199,14 @@ export class FirestoreBookRepository implements BookRepository {
   async update(isbn: string, updates: UpdateBookDto): Promise<Book | null> {
     const docRef = this.collection.doc(isbn);
     const doc = await docRef.get();
-    
+
     if (!doc.exists) {
       return null;
     }
 
     const updateData = this.bookToFirestore(updates);
     await docRef.update(updateData);
-    
+
     // Fetch updated document
     const updatedDoc = await docRef.get();
     return this.firestoreToBook(updatedDoc.id, updatedDoc.data()!);
@@ -211,11 +215,11 @@ export class FirestoreBookRepository implements BookRepository {
   async delete(isbn: string): Promise<boolean> {
     const docRef = this.collection.doc(isbn);
     const doc = await docRef.get();
-    
+
     if (!doc.exists) {
       return false;
     }
-    
+
     await docRef.delete();
     return true;
   }
@@ -225,18 +229,17 @@ export class FirestoreBookRepository implements BookRepository {
     // we'll fetch all documents and filter client-side
     // For production, consider using Algolia or Elasticsearch
     const snapshot = await this.collection.get();
-    const allBooks = snapshot.docs.map(doc => 
-      this.firestoreToBook(doc.id, doc.data())
-    );
+    const allBooks = snapshot.docs.map(doc => this.firestoreToBook(doc.id, doc.data()));
 
     const searchTerm = query.toLowerCase();
-    return allBooks.filter(book =>
-      book.title.toLowerCase().includes(searchTerm) ||
-      book.authors.some(author => author.toLowerCase().includes(searchTerm)) ||
-      book.isbn.toLowerCase().includes(searchTerm) ||
-      book.publisher.toLowerCase().includes(searchTerm) ||
-      (book.genre && book.genre.toLowerCase().includes(searchTerm)) ||
-      (book.description && book.description.toLowerCase().includes(searchTerm))
+    return allBooks.filter(
+      book =>
+        book.title.toLowerCase().includes(searchTerm) ||
+        book.authors.some(author => author.toLowerCase().includes(searchTerm)) ||
+        book.isbn.toLowerCase().includes(searchTerm) ||
+        book.publisher.toLowerCase().includes(searchTerm) ||
+        (book.genre && book.genre.toLowerCase().includes(searchTerm)) ||
+        (book.description && book.description.toLowerCase().includes(searchTerm))
     );
   }
 
