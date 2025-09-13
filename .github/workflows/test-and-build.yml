@@ -36,8 +36,11 @@ jobs:
       - name: Build PWA
         run: |
           cd public
-          if [ -f package.json ]; then
+          if [ -f package.json ] && [ -f package-lock.json ]; then
             npm ci
+            npm run build
+          elif [ -f package.json ]; then
+            npm install
             npm run build
           fi
 
