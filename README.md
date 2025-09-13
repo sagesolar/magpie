@@ -2,6 +2,8 @@
 
 A modern, full-stack book collection management system built with clean architecture principles. Features a Node.js TypeScript backend with REST API and a Progressive Web App (PWA) frontend with offline support.
 
+> **🔒 Security Note**: This is a public repository. Never commit actual project IDs, service account keys, or other sensitive data. See [`SECURITY.md`](docs/SECURITY.md) for detailed security guidelines.
+
 ## ✨ Features
 
 ### 📚 Book Management
@@ -31,41 +33,12 @@ A modern, full-stack book collection management system built with clean architec
 - **Mobile-First**: Responsive design optimized for all devices
 - **App-like Experience**: Install on device home screen
 
-## 🏗️ Architecture
-
-Built following **SOLID principles** and **Clean Architecture**:
-
-```
-src/
-├── domain/           # Business entities and rules
-│   └── book.types.ts
-├── application/      # Use cases and business logic
-│   └── book.usecase.ts
-├── infrastructure/   # External services and data access
-│   ├── interfaces.ts
-│   ├── firestore-book.repository.ts
-│   └── external-book.service.ts
-├── api/             # REST API controllers and routes
-│   ├── book.controller.ts
-│   ├── book.routes.ts
-│   └── validation.schemas.ts
-└── server.ts        # Application entry point
-```
-
-### Key Architectural Benefits
-
-- **Dependency Inversion**: High-level modules don't depend on low-level modules
-- **Single Responsibility**: Each class has one reason to change
-- **Open/Closed Principle**: Open for extension, closed for modification
-- **Interface Segregation**: Clients depend only on interfaces they use
-- **Liskov Substitution**: Derived classes must be substitutable for base classes
-
 ## 🚀 Quick Start
 
 ### Prerequisites
 
-- Node.js 18+
-- npm or yarn
+- Node.js 20+ (LTS)
+- npm 9+
 
 ### Installation
 
@@ -83,6 +56,8 @@ src/
    cp .env.example .env
    # Edit .env with your configuration
    ```
+
+   > **Windows Users**: For CI/CD setup and additional tooling, run `.\scripts\setup-windows.ps1` in PowerShell to validate prerequisites and get setup guidance.
 
 3. **Build the project**:
 
@@ -161,35 +136,7 @@ The system uses **Google Cloud Firestore** as its NoSQL document database, provi
 - **Security**: Fine-grained security rules
 - **Global distribution**: Multi-region data replication
 
-#### Firestore Setup
-
-1. **Create a Google Cloud Project**: 
-   - Go to [Google Cloud Console](https://console.cloud.google.com/)
-   - Create a new project or select an existing one
-
-2. **Enable Firestore**:
-   - Navigate to Firestore in the Google Cloud Console
-   - Select "Create database" and choose your region
-
-3. **Authentication Setup**:
-   - **Option A**: Service Account (Recommended for production)
-     - Create a service account in IAM & Admin
-     - Generate and download the JSON key file
-     - Set `GOOGLE_APPLICATION_CREDENTIALS` to the file path
-   
-   - **Option B**: Application Default Credentials (Development)
-     - Install Google Cloud CLI: `npm install -g @google-cloud/cli`
-     - Run: `gcloud auth application-default login`
-
-4. **Environment Configuration**:
-   ```env
-   GOOGLE_CLOUD_PROJECT_ID=your-project-id
-   GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
-   ```
-
 ## 🛠️ Development
-
-### Available Scripts
 
 ### Available Scripts
 
@@ -211,7 +158,14 @@ The system uses **Google Cloud Firestore** as its NoSQL document database, provi
 
 ```
 magpie/
-├── src/                 # Source code
+├── .github/            # GitHub Actions workflows
+│   └── workflows/      # CI/CD pipeline definitions
+├── docs/               # Documentation
+│   ├── CI_CD_SETUP.md  # CI/CD setup guide
+│   ├── DEPLOYMENT.md   # Deployment instructions
+│   ├── FIRESTORE_SETUP.md # Database setup guide
+│   └── SECURITY.md     # Security guidelines
+├── src/                # Source code
 │   ├── api/            # REST API controllers and routes
 │   ├── application/    # Use cases and business logic
 │   ├── domain/         # Business entities and types
@@ -223,8 +177,22 @@ magpie/
 │   ├── book.usecase.test.ts    # Application layer tests
 │   └── book.controller.test.ts # API layer tests
 ├── public/             # PWA static files
-├── coverage/           # Test coverage reports (generated)
-├── dist/               # Compiled JavaScript (generated)
+│   ├── index.html      # Main PWA interface
+│   ├── manifest.json   # PWA manifest
+│   ├── sw.js          # Service worker
+│   ├── styles/        # CSS files
+│   │   ├── main.css   # Main layout and theme
+│   │   ├── components.css # Reusable UI components
+│   │   ├── books.css  # Book-specific styling
+│   │   └── forms.css  # Form elements styling
+│   ├── images/        # Application images and icons
+│   │   ├── favicons/  # PWA icons and favicon assets
+│   │   ├── magpie-main.png # Main logo (horizontal)
+│   │   └── magpie-square-icon.png # Square icon for toasts
+│   └── js/            # Frontend JavaScript
+├── Dockerfile          # Docker containerization
+├── firebase.json       # Firebase hosting configuration
+├── .nvmrc             # Node.js version specification
 ├── package.json        # Dependencies and scripts
 ├── tsconfig.json       # TypeScript configuration
 ├── jest.config.js      # Jest test configuration
@@ -353,7 +321,7 @@ NODE_ENV=production npm start
 ### Docker (Optional)
 
 ```dockerfile
-FROM node:18-alpine
+FROM node:20-alpine
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci --only=production
@@ -363,25 +331,14 @@ EXPOSE 3000
 CMD ["npm", "start"]
 ```
 
-## 🤝 Contributing
+## 📖 Documentation
 
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Commit changes: `git commit -m 'Add amazing feature'`
-4. Push to branch: `git push origin feature/amazing-feature`
-5. Open a Pull Request
+Comprehensive documentation is available in the [`docs/`](docs/) folder:
 
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- Built with modern TypeScript and Node.js
-- Uses Google Cloud Firestore for scalable NoSQL storage
-- Progressive Web App capabilities
-- Clean Architecture principles
-- SOLID design patterns
+- **[Setup & Configuration](docs/)** - Database setup, CI/CD configuration
+- **[Deployment Guide](docs/DEPLOYMENT.md)** - Production deployment instructions  
+- **[Security Guide](docs/SECURITY.md)** - Security best practices
+- **[Firestore Setup](docs/FIRESTORE_SETUP.md)** - Database configuration guide
 
 ---
 
