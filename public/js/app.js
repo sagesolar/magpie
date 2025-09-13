@@ -30,6 +30,9 @@ class MagpieApp {
       this.renderBooks();
       this.populateGenreFilter();
       
+      // Pre-cache cover images for offline use
+      this.cacheCoverImages();
+      
       this.isInitialized = true;
       console.log('Magpie app initialized successfully');
       
@@ -92,6 +95,23 @@ class MagpieApp {
     } catch (error) {
       console.error('Failed to load books:', error);
       this.showToast('Failed to load books', 'error');
+    }
+  }
+
+  // Cache cover images for offline use
+  async cacheCoverImages() {
+    try {
+      if ('serviceWorker' in navigator && this.books.length > 0) {
+        const registration = await navigator.serviceWorker.ready;
+        if (registration.active) {
+          registration.active.postMessage({
+            type: 'CACHE_IMAGES'
+          });
+          console.log('Requested cover image caching');
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to cache cover images:', error);
     }
   }
 
@@ -163,14 +183,49 @@ class MagpieApp {
   renderBookCard(book) {
     const syncIndicator = book.needsSync ? '<span class="sync-indicator pending"></span>' : '<span class="sync-indicator"></span>';
     
+    // Generate a consistent color based on the book title
+    const getBookColor = (title) => {
+      const colors = [
+        'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+        'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+        'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+        'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+        'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
+        'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)',
+        'linear-gradient(135deg, #ff8a80 0%, #ff5722 100%)'
+      ];
+      let hash = 0;
+      for (let i = 0; i < title.length; i++) {
+        hash = title.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      return colors[Math.abs(hash) % colors.length];
+    };
+
+    const coverElement = book.coverImageUrl 
+      ? `<img src="${book.coverImageUrl}" alt="${book.title}" class="book-cover-image" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">`
+      : '';
+    
+    const placeholderCover = `
+      <div class="book-cover-placeholder" style="background: ${getBookColor(book.title)}; ${book.coverImageUrl ? 'display: none;' : ''}">
+        <div class="placeholder-title">${book.title.length > 30 ? book.title.substring(0, 27) + '...' : book.title}</div>
+        <div class="placeholder-author">${book.authors[0]}</div>
+      </div>
+    `;
+    
     return `
       <div class="book-card">
-        <div class="book-header">
-          <div>
-            <div class="book-title">${book.title}${syncIndicator}</div>
-            <div class="book-authors">${book.authors.join(', ')}</div>
-          </div>
-          <div class="book-actions">
+        <div class="book-cover-container">
+          ${coverElement}
+          ${placeholderCover}
+        </div>
+        <div class="book-content">
+          <div class="book-header">
+            <div>
+              <div class="book-title">${book.title}${syncIndicator}</div>
+              <div class="book-authors">${book.authors.join(', ')}</div>
+            </div>
+            <div class="book-actions">
             <button class="icon-btn favourite ${book.isFavourite ? 'active' : ''}" 
                     onclick="app.toggleFavourite('${book.isbn}')" title="Favourite">
               ⭐
@@ -179,7 +234,7 @@ class MagpieApp {
                     onclick="app.toggleRead('${book.isbn}')" title="Mark as read">
               ✓
             </button>
-            <button class="icon-btn loan ${book.loanedTo ? 'active' : ''}" 
+            <button class="icon-btn loan ${book.loanStatus?.isLoaned ? 'active' : ''}" 
                     onclick="app.showLoanModal('${book.isbn}')" title="Loan status">
               👤
             </button>
@@ -196,10 +251,11 @@ class MagpieApp {
         
         <div class="book-meta">
           <div><strong>Genre:</strong> ${book.genre || 'N/A'}</div>
-          <div><strong>Pages:</strong> ${book.pageCount || 'N/A'}</div>
-          <div><strong>Published:</strong> ${book.publicationDate || 'N/A'}</div>
+          <div><strong>Pages:</strong> ${book.pages || 'N/A'}</div>
+          <div><strong>Published:</strong> ${book.publishingYear || 'N/A'}</div>
           <div><strong>Rating:</strong> ${book.rating ? '⭐'.repeat(book.rating) : 'Not rated'}</div>
-          ${book.loanedTo ? `<div colspan="2"><strong>Loaned to:</strong> ${book.loanedTo}</div>` : ''}
+          ${book.loanStatus?.loanedTo ? `<div><strong>Loaned to:</strong> ${book.loanStatus.loanedTo}</div>` : ''}
+        </div>
         </div>
       </div>
     `;
@@ -613,7 +669,23 @@ class MagpieApp {
 
   showToast(message, type = 'info') {
     const toast = document.getElementById('toast');
-    toast.textContent = message;
+    
+    // Add icon based on toast type
+    let icon = '';
+    switch(type) {
+      case 'success':
+        icon = '✓';
+        break;
+      case 'error':
+        icon = '<img src="images/magpie-square-icon.png" alt="" class="toast-icon">';
+        break;
+      case 'info':
+      default:
+        icon = 'ℹ';
+        break;
+    }
+    
+    toast.innerHTML = `${icon} ${message}`;
     toast.className = `toast ${type}`;
     toast.classList.add('show');
 

@@ -1,8 +1,11 @@
 // API service for communication with backend
 class APIService {
   constructor() {
-    this.baseUrl = '/api';
+    // Use environment variable or fallback to relative path for development
+    this.baseUrl = (typeof __API_BASE_URL__ !== 'undefined' ? __API_BASE_URL__ : '') + '/api';
     this.isOnline = navigator.onLine;
+    
+    console.log('API Base URL:', this.baseUrl);
     
     // Listen for online/offline events
     window.addEventListener('online', () => {
