@@ -53,5 +53,10 @@
     "node-fetch": "^3.3.2",
     "sqlite3": "^5.1.6",
     "zod": "^3.22.2"
+  },
+  "frontendDependencies": {
+    "idb": "^8.0.0",
+    "tesseract.js": "^5.0.4",
+    "workbox-webpack-plugin": "^7.0.0"
   }
 }
