@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "description": "A book collection management system",
   "main": "dist/server.js",
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=9.0.0"
+  },
   "scripts": {
     "build": "tsc",
     "start": "node dist/server.js",
@@ -17,7 +21,10 @@
     "format:check": "prettier --check .",
     "format:staged": "prettier --write",
     "check": "npm run lint && npm run format:check && npm run build",
-    "check:all": "npm run lint && npm run format:check && npm run test && npm run build"
+    "check:all": "npm run lint && npm run format:check && npm run test && npm run build",
+    "db:init": "bash scripts/database/init-database.sh",
+    "db:seed": "node scripts/database/seed-firestore.js",
+    "db:setup": "node scripts/database/setup-metadata.js"
   },
   "keywords": [
     "book",
