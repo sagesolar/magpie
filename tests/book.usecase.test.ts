@@ -154,10 +154,10 @@ describe('BookUseCase', () => {
     });
 
     it('should sort by title descending', async () => {
-      const result = await bookUseCase.getAllBooks(
-        undefined,
-        { field: 'title', direction: 'desc' }
-      );
+      const result = await bookUseCase.getAllBooks(undefined, {
+        field: 'title',
+        direction: 'desc',
+      });
 
       expect(result.data[0].title).toBe('The Hobbit');
       expect(result.data[1].title).toBe('JavaScript: The Good Parts');
@@ -165,11 +165,7 @@ describe('BookUseCase', () => {
     });
 
     it('should apply pagination', async () => {
-      const result = await bookUseCase.getAllBooks(
-        undefined,
-        undefined,
-        { page: 2, limit: 2 }
-      );
+      const result = await bookUseCase.getAllBooks(undefined, undefined, { page: 2, limit: 2 });
 
       expect(result.data).toHaveLength(1);
       expect(result.page).toBe(2);
@@ -200,15 +196,15 @@ describe('BookUseCase', () => {
     });
 
     it('should throw error when book not found', async () => {
-      await expect(
-        bookUseCase.updateBook('9999999999999', { title: 'New Title' })
-      ).rejects.toThrow('Book not found');
+      await expect(bookUseCase.updateBook('9999999999999', { title: 'New Title' })).rejects.toThrow(
+        'Book not found'
+      );
     });
 
     it('should throw error for invalid ISBN', async () => {
-      await expect(
-        bookUseCase.updateBook('invalid', { title: 'New Title' })
-      ).rejects.toThrow('Invalid ISBN format');
+      await expect(bookUseCase.updateBook('invalid', { title: 'New Title' })).rejects.toThrow(
+        'Invalid ISBN format'
+      );
     });
   });
 

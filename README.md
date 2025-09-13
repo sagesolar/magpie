@@ -244,15 +244,16 @@ npm run check:all
 
 ### Test Coverage
 
-| Layer | Coverage | Details |
-|-------|----------|---------|
-| **API Controller** | 94.84% | All endpoints, validation, error handling |
-| **Application Use Cases** | 97.36% | Business logic, edge cases, validation |
-| **Overall** | 95%+ | Comprehensive test coverage |
+| Layer                     | Coverage | Details                                   |
+| ------------------------- | -------- | ----------------------------------------- |
+| **API Controller**        | 94.84%   | All endpoints, validation, error handling |
+| **Application Use Cases** | 97.36%   | Business logic, edge cases, validation    |
+| **Overall**               | 95%+     | Comprehensive test coverage               |
 
 ### What's Tested
 
 #### Application Layer (`book.usecase.test.ts`)
+
 - ✅ **Book Creation** - Valid data, duplicates, validation
 - ✅ **Book Retrieval** - By ISBN, pagination, filtering
 - ✅ **Book Updates** - Partial updates, validation
@@ -263,6 +264,7 @@ npm run check:all
 - ✅ **Loan Tracking** - Update loan status and metadata
 
 #### API Layer (`book.controller.test.ts`)
+
 - ✅ **REST Endpoints** - All CRUD operations
 - ✅ **HTTP Status Codes** - Proper status code responses
 - ✅ **Request Validation** - Zod schema validation
@@ -336,7 +338,7 @@ CMD ["npm", "start"]
 Comprehensive documentation is available in the [`docs/`](docs/) folder:
 
 - **[Setup & Configuration](docs/)** - Database setup, CI/CD configuration
-- **[Deployment Guide](docs/DEPLOYMENT.md)** - Production deployment instructions  
+- **[Deployment Guide](docs/DEPLOYMENT.md)** - Production deployment instructions
 - **[Security Guide](docs/SECURITY.md)** - Security best practices
 - **[Firestore Setup](docs/FIRESTORE_SETUP.md)** - Database configuration guide
 

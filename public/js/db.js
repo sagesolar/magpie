@@ -17,7 +17,7 @@ class BookDB {
         resolve();
       };
 
-      request.onupgradeneeded = (event) => {
+      request.onupgradeneeded = event => {
         const db = event.target.result;
 
         // Books store
@@ -57,7 +57,7 @@ class BookDB {
   async getAllBooks() {
     const transaction = this.getTransaction(['books']);
     const store = transaction.objectStore('books');
-    
+
     return new Promise((resolve, reject) => {
       const request = store.getAll();
       request.onsuccess = () => resolve(request.result);
@@ -68,7 +68,7 @@ class BookDB {
   async getBook(isbn) {
     const transaction = this.getTransaction(['books']);
     const store = transaction.objectStore('books');
-    
+
     return new Promise((resolve, reject) => {
       const request = store.get(isbn);
       request.onsuccess = () => resolve(request.result || null);
@@ -84,7 +84,7 @@ class BookDB {
     // Save book
     const existingBook = await this.getBook(book.isbn);
     const isUpdate = !!existingBook;
-    
+
     book.dateUpdated = new Date().toISOString();
     book.needsSync = true;
     book.syncAction = isUpdate ? 'update' : 'create';
@@ -96,13 +96,13 @@ class BookDB {
       action: book.syncAction,
       data: book,
       timestamp: new Date().toISOString(),
-      synced: false
+      synced: false,
     };
 
     return new Promise((resolve, reject) => {
       booksStore.put(book);
       changesStore.add(change);
-      
+
       transaction.oncomplete = () => resolve();
       transaction.onerror = () => reject(transaction.error);
     });
@@ -120,13 +120,13 @@ class BookDB {
       action: 'delete',
       data: { isbn },
       timestamp: new Date().toISOString(),
-      synced: false
+      synced: false,
     };
 
     return new Promise((resolve, reject) => {
       booksStore.delete(isbn);
       changesStore.add(change);
-      
+
       transaction.oncomplete = () => resolve();
       transaction.onerror = () => reject(transaction.error);
     });
@@ -135,18 +135,19 @@ class BookDB {
   async searchBooks(query) {
     const books = await this.getAllBooks();
     const lowerQuery = query.toLowerCase();
-    
-    return books.filter(book => 
-      book.title.toLowerCase().includes(lowerQuery) ||
-      book.authors.some(author => author.toLowerCase().includes(lowerQuery)) ||
-      (book.genre && book.genre.toLowerCase().includes(lowerQuery)) ||
-      book.isbn.includes(query)
+
+    return books.filter(
+      book =>
+        book.title.toLowerCase().includes(lowerQuery) ||
+        book.authors.some(author => author.toLowerCase().includes(lowerQuery)) ||
+        (book.genre && book.genre.toLowerCase().includes(lowerQuery)) ||
+        book.isbn.includes(query)
     );
   }
 
   async getBooksByFilter(filter) {
     const books = await this.getAllBooks();
-    
+
     return books.filter(book => {
       if (filter.isRead !== undefined && book.isRead !== filter.isRead) return false;
       if (filter.isFavourite !== undefined && book.isFavourite !== filter.isFavourite) return false;
@@ -161,7 +162,7 @@ class BookDB {
     const transaction = this.getTransaction(['changes']);
     const store = transaction.objectStore('changes');
     const index = store.index('synced');
-    
+
     return new Promise((resolve, reject) => {
       const request = index.getAll(false);
       request.onsuccess = () => resolve(request.result);
@@ -172,7 +173,7 @@ class BookDB {
   async markChangeAsSynced(changeId) {
     const transaction = this.getTransaction(['changes'], 'readwrite');
     const store = transaction.objectStore('changes');
-    
+
     return new Promise((resolve, reject) => {
       const getRequest = store.get(changeId);
       getRequest.onsuccess = () => {
@@ -182,7 +183,7 @@ class BookDB {
           store.put(change);
         }
       };
-      
+
       transaction.oncomplete = () => resolve();
       transaction.onerror = () => reject(transaction.error);
     });
@@ -191,15 +192,15 @@ class BookDB {
   async clearSyncedChanges() {
     const changes = await this.getUnsyncedChanges();
     const syncedChanges = changes.filter(c => c.synced);
-    
+
     if (syncedChanges.length === 0) return;
 
     const transaction = this.getTransaction(['changes'], 'readwrite');
     const store = transaction.objectStore('changes');
-    
+
     return new Promise((resolve, reject) => {
       syncedChanges.forEach(change => store.delete(change.id));
-      
+
       transaction.oncomplete = () => resolve();
       transaction.onerror = () => reject(transaction.error);
     });
@@ -209,7 +210,7 @@ class BookDB {
   async getMetadata(key) {
     const transaction = this.getTransaction(['metadata']);
     const store = transaction.objectStore('metadata');
-    
+
     return new Promise((resolve, reject) => {
       const request = store.get(key);
       request.onsuccess = () => resolve(request.result?.value);
@@ -220,10 +221,10 @@ class BookDB {
   async setMetadata(key, value) {
     const transaction = this.getTransaction(['metadata'], 'readwrite');
     const store = transaction.objectStore('metadata');
-    
+
     return new Promise((resolve, reject) => {
       store.put({ key, value });
-      
+
       transaction.oncomplete = () => resolve();
       transaction.onerror = () => reject(transaction.error);
     });

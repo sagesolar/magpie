@@ -1,225 +1,256 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Magpie - Book Collection</title>
-    <link rel="manifest" href="manifest.json">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <meta name="theme-color" content="#667eea">
-    
+    <link rel="manifest" href="manifest.json" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <meta name="theme-color" content="#667eea" />
+
     <!-- Favicons and Icons -->
-    <link rel="icon" type="image/x-icon" href="images/favicons/favicon.ico">
-    <link rel="icon" type="image/png" sizes="32x32" href="images/favicons/favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="images/favicons/favicon-16x16.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="images/favicons/apple-touch-icon.png">
-    <link rel="mask-icon" href="images/favicons/safari-pinned-tab.svg" color="#667eea">
-    
+    <link rel="icon" type="image/x-icon" href="images/favicons/favicon.ico" />
+    <link rel="icon" type="image/png" sizes="32x32" href="images/favicons/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="images/favicons/favicon-16x16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="images/favicons/apple-touch-icon.png" />
+    <link rel="mask-icon" href="images/favicons/safari-pinned-tab.svg" color="#667eea" />
+
     <!-- CSS Files -->
-    <link rel="stylesheet" href="styles/main.css">
-    <link rel="stylesheet" href="styles/components.css">
-    <link rel="stylesheet" href="styles/books.css">
-    <link rel="stylesheet" href="styles/forms.css">
-</head>
+    <link rel="stylesheet" href="styles/main.css" />
+    <link rel="stylesheet" href="styles/components.css" />
+    <link rel="stylesheet" href="styles/books.css" />
+    <link rel="stylesheet" href="styles/forms.css" />
+  </head>
 
-<body>
+  <body>
     <div class="app">
-        <!-- Header -->
-        <header class="header">
-            <div class="header-logo">
-                <img src="images/magpie-main.png" alt="Magpie Logo" class="logo-image">
-                <h1>Magpie</h1>
-            </div>
-            <p>Your Personal Book Collection</p>
-        </header>
+      <!-- Header -->
+      <header class="header">
+        <div class="header-logo">
+          <img src="images/magpie-main.png" alt="Magpie Logo" class="logo-image" />
+          <h1>Magpie</h1>
+        </div>
+        <p>Your Personal Book Collection</p>
+      </header>
 
-        <!-- Status Bar -->
-        <div class="status-bar">
-            <div class="status-indicator">
-                <div class="status-dot" id="connectionStatus"></div>
-                <span id="connectionText">Online</span>
-                <span id="syncStatus"></span>
-            </div>
-            <button class="sync-button" id="syncButton" onclick="app.manualSync()">
-                🔄 Sync Now
-            </button>
+      <!-- Status Bar -->
+      <div class="status-bar">
+        <div class="status-indicator">
+          <div class="status-dot" id="connectionStatus"></div>
+          <span id="connectionText">Online</span>
+          <span id="syncStatus"></span>
+        </div>
+        <button class="sync-button" id="syncButton" onclick="app.manualSync()">🔄 Sync Now</button>
+      </div>
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab active" onclick="app.switchTab('collection')">My Collection</button>
+        <button class="tab" onclick="app.switchTab('favourites')">Favourites</button>
+        <button class="tab" onclick="app.switchTab('wishlist')">Wishlist</button>
+        <button class="tab" onclick="app.switchTab('loans')">Loans</button>
+      </div>
+
+      <!-- Collection Tab -->
+      <div id="collection-tab" class="tab-content active">
+        <div class="controls">
+          <div class="search-bar">
+            <input
+              type="text"
+              class="search-input"
+              id="searchInput"
+              placeholder="Search books by title, author, or ISBN..."
+            />
+            <button class="btn btn-primary" onclick="app.searchBooks()">Search</button>
+            <button class="btn btn-secondary" onclick="app.showAddBookModal()">+ Add Book</button>
+            <button class="btn btn-secondary" onclick="app.showCameraModal()">📷 Scan ISBN</button>
+          </div>
+          <div class="filters">
+            <select class="filter-select" id="genreFilter" onchange="app.applyFilters()">
+              <option value="">All Genres</option>
+            </select>
+            <select class="filter-select" id="readFilter" onchange="app.applyFilters()">
+              <option value="">All Books</option>
+              <option value="true">Read</option>
+              <option value="false">Unread</option>
+            </select>
+            <button class="btn btn-secondary" onclick="app.clearFilters()">Clear Filters</button>
+          </div>
         </div>
 
-        <!-- Tabs -->
-        <div class="tabs">
-            <button class="tab active" onclick="app.switchTab('collection')">My Collection</button>
-            <button class="tab" onclick="app.switchTab('favourites')">Favourites</button>
-            <button class="tab" onclick="app.switchTab('wishlist')">Wishlist</button>
-            <button class="tab" onclick="app.switchTab('loans')">Loans</button>
+        <div id="booksContainer">
+          <div class="loading">
+            <div class="spinner"></div>
+            <p>Loading your collection...</p>
+          </div>
         </div>
+      </div>
 
-        <!-- Collection Tab -->
-        <div id="collection-tab" class="tab-content active">
-            <div class="controls">
-                <div class="search-bar">
-                    <input type="text" class="search-input" id="searchInput" placeholder="Search books by title, author, or ISBN...">
-                    <button class="btn btn-primary" onclick="app.searchBooks()">Search</button>
-                    <button class="btn btn-secondary" onclick="app.showAddBookModal()">+ Add Book</button>
-                    <button class="btn btn-secondary" onclick="app.showCameraModal()">📷 Scan ISBN</button>
-                </div>
-                <div class="filters">
-                    <select class="filter-select" id="genreFilter" onchange="app.applyFilters()">
-                        <option value="">All Genres</option>
-                    </select>
-                    <select class="filter-select" id="readFilter" onchange="app.applyFilters()">
-                        <option value="">All Books</option>
-                        <option value="true">Read</option>
-                        <option value="false">Unread</option>
-                    </select>
-                    <button class="btn btn-secondary" onclick="app.clearFilters()">Clear Filters</button>
-                </div>
-            </div>
-            
-            <div id="booksContainer">
-                <div class="loading">
-                    <div class="spinner"></div>
-                    <p>Loading your collection...</p>
-                </div>
-            </div>
-        </div>
+      <!-- Favourites Tab -->
+      <div id="favourites-tab" class="tab-content">
+        <div id="favouritesContainer"></div>
+      </div>
 
-        <!-- Favourites Tab -->
-        <div id="favourites-tab" class="tab-content">
-            <div id="favouritesContainer"></div>
+      <!-- Wishlist Tab -->
+      <div id="wishlist-tab" class="tab-content">
+        <div class="controls">
+          <div class="search-bar">
+            <input
+              type="text"
+              class="search-input"
+              id="wishlistSearchInput"
+              placeholder="Search for books to add to wishlist..."
+            />
+            <button class="btn btn-primary" onclick="app.searchWishlist()">Search</button>
+          </div>
         </div>
+        <div id="wishlistContainer"></div>
+      </div>
 
-        <!-- Wishlist Tab -->
-        <div id="wishlist-tab" class="tab-content">
-            <div class="controls">
-                <div class="search-bar">
-                    <input type="text" class="search-input" id="wishlistSearchInput" placeholder="Search for books to add to wishlist...">
-                    <button class="btn btn-primary" onclick="app.searchWishlist()">Search</button>
-                </div>
-            </div>
-            <div id="wishlistContainer"></div>
-        </div>
-
-        <!-- Loans Tab -->
-        <div id="loans-tab" class="tab-content">
-            <div id="loansContainer"></div>
-        </div>
+      <!-- Loans Tab -->
+      <div id="loans-tab" class="tab-content">
+        <div id="loansContainer"></div>
+      </div>
     </div>
 
     <!-- Add/Edit Book Modal -->
     <div id="bookModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title" id="modalTitle">Add New Book</h2>
-                <button class="close-btn" onclick="app.closeModal()">&times;</button>
-            </div>
-            <form id="bookForm" onsubmit="app.saveBook(event)">
-                <div class="form-group">
-                    <label class="form-label">ISBN *</label>
-                    <input type="text" class="form-input" id="isbnInput" required>
-                    <button type="button" class="btn btn-secondary" style="margin-top: 5px;" onclick="app.fetchBookData()">
-                        📖 Fetch Book Data
-                    </button>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Title *</label>
-                    <input type="text" class="form-input" id="titleInput" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Authors *</label>
-                    <input type="text" class="form-input" id="authorsInput" required placeholder="Separate multiple authors with commas">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Publication Date</label>
-                    <input type="date" class="form-input" id="publicationDateInput">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Publisher</label>
-                    <input type="text" class="form-input" id="publisherInput">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Page Count</label>
-                    <input type="number" class="form-input" id="pageCountInput">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Genre</label>
-                    <input type="text" class="form-input" id="genreInput">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Description</label>
-                    <textarea class="form-input" id="descriptionInput" rows="3"></textarea>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Cover Image URL</label>
-                    <input type="url" class="form-input" id="coverImageUrlInput">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Rating (1-5)</label>
-                    <input type="number" class="form-input" id="ratingInput" min="1" max="5">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Notes</label>
-                    <textarea class="form-input" id="notesInput" rows="2"></textarea>
-                </div>
-                <div class="form-group">
-                    <label>
-                        <input type="checkbox" id="isReadInput"> Mark as read
-                    </label>
-                </div>
-                <div class="form-group">
-                    <label>
-                        <input type="checkbox" id="isFavouriteInput"> Add to favourites
-                    </label>
-                </div>
-                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
-                    <button type="button" class="btn btn-secondary" onclick="app.closeModal()">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save Book</button>
-                </div>
-            </form>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 class="modal-title" id="modalTitle">Add New Book</h2>
+          <button class="close-btn" onclick="app.closeModal()">&times;</button>
         </div>
+        <form id="bookForm" onsubmit="app.saveBook(event)">
+          <div class="form-group">
+            <label class="form-label">ISBN *</label>
+            <input type="text" class="form-input" id="isbnInput" required />
+            <button
+              type="button"
+              class="btn btn-secondary"
+              style="margin-top: 5px"
+              onclick="app.fetchBookData()"
+            >
+              📖 Fetch Book Data
+            </button>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Title *</label>
+            <input type="text" class="form-input" id="titleInput" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Authors *</label>
+            <input
+              type="text"
+              class="form-input"
+              id="authorsInput"
+              required
+              placeholder="Separate multiple authors with commas"
+            />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Publication Date</label>
+            <input type="date" class="form-input" id="publicationDateInput" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Publisher</label>
+            <input type="text" class="form-input" id="publisherInput" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Page Count</label>
+            <input type="number" class="form-input" id="pageCountInput" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Genre</label>
+            <input type="text" class="form-input" id="genreInput" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Description</label>
+            <textarea class="form-input" id="descriptionInput" rows="3"></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Cover Image URL</label>
+            <input type="url" class="form-input" id="coverImageUrlInput" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Rating (1-5)</label>
+            <input type="number" class="form-input" id="ratingInput" min="1" max="5" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Notes</label>
+            <textarea class="form-input" id="notesInput" rows="2"></textarea>
+          </div>
+          <div class="form-group">
+            <label> <input type="checkbox" id="isReadInput" /> Mark as read </label>
+          </div>
+          <div class="form-group">
+            <label> <input type="checkbox" id="isFavouriteInput" /> Add to favourites </label>
+          </div>
+          <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px">
+            <button type="button" class="btn btn-secondary" onclick="app.closeModal()">
+              Cancel
+            </button>
+            <button type="submit" class="btn btn-primary">Save Book</button>
+          </div>
+        </form>
+      </div>
     </div>
 
     <!-- Camera Modal -->
     <div id="cameraModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title">Scan ISBN with Camera</h2>
-                <button class="close-btn" onclick="app.closeCameraModal()">&times;</button>
-            </div>
-            <div class="camera-container">
-                <video id="cameraVideo" class="camera-video" width="400" height="300" autoplay></video>
-                <div class="camera-controls">
-                    <button class="btn btn-primary" id="startScanBtn" onclick="app.startISBNScan()">Start Scanning</button>
-                    <button class="btn btn-secondary" id="stopScanBtn" onclick="app.stopISBNScan()" style="display: none;">Stop Scanning</button>
-                </div>
-                <p id="scanStatus" style="margin-top: 10px; color: #6b7280;"></p>
-            </div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 class="modal-title">Scan ISBN with Camera</h2>
+          <button class="close-btn" onclick="app.closeCameraModal()">&times;</button>
         </div>
+        <div class="camera-container">
+          <video id="cameraVideo" class="camera-video" width="400" height="300" autoplay></video>
+          <div class="camera-controls">
+            <button class="btn btn-primary" id="startScanBtn" onclick="app.startISBNScan()">
+              Start Scanning
+            </button>
+            <button
+              class="btn btn-secondary"
+              id="stopScanBtn"
+              onclick="app.stopISBNScan()"
+              style="display: none"
+            >
+              Stop Scanning
+            </button>
+          </div>
+          <p id="scanStatus" style="margin-top: 10px; color: #6b7280"></p>
+        </div>
+      </div>
     </div>
 
     <!-- Loan Modal -->
     <div id="loanModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title">Loan Book</h2>
-                <button class="close-btn" onclick="app.closeLoanModal()">&times;</button>
-            </div>
-            <form id="loanForm" onsubmit="app.saveLoan(event)">
-                <div class="form-group">
-                    <label class="form-label">Loaned To</label>
-                    <input type="text" class="form-input" id="loanedToInput" placeholder="Person's name">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Loan Date</label>
-                    <input type="date" class="form-input" id="loanDateInput">
-                </div>
-                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
-                    <button type="button" class="btn btn-secondary" onclick="app.closeLoanModal()">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save</button>
-                </div>
-            </form>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 class="modal-title">Loan Book</h2>
+          <button class="close-btn" onclick="app.closeLoanModal()">&times;</button>
         </div>
+        <form id="loanForm" onsubmit="app.saveLoan(event)">
+          <div class="form-group">
+            <label class="form-label">Loaned To</label>
+            <input type="text" class="form-input" id="loanedToInput" placeholder="Person's name" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Loan Date</label>
+            <input type="date" class="form-input" id="loanDateInput" />
+          </div>
+          <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px">
+            <button type="button" class="btn btn-secondary" onclick="app.closeLoanModal()">
+              Cancel
+            </button>
+            <button type="submit" class="btn btn-primary">Save</button>
+          </div>
+        </form>
+      </div>
     </div>
 
     <!-- Toast Notifications -->
@@ -230,14 +261,15 @@
     <script type="module" src="js/api.js"></script>
     <script type="module" src="js/camera-ocr.js"></script>
     <script type="module" src="js/app.js"></script>
-    
+
     <script>
-        // Register service worker
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js')
-                .then(registration => console.log('SW registered'))
-                .catch(error => console.log('SW registration failed'));
-        }
+      // Register service worker
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker
+          .register('/sw.js')
+          .then(registration => console.log('SW registered'))
+          .catch(error => console.log('SW registration failed'));
+      }
     </script>
-</body>
+  </body>
 </html>

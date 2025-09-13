@@ -5,6 +5,7 @@ This guide will help you set up the complete CI/CD pipeline for the Magpie Book 
 ## 🏗️ **Architecture Overview**
 
 ### **Environments**
+
 - **Development**: `your-dev-project-id`
   - Database: `your-dev-database-name`
   - Cloud Run: `your-dev-service-name`
@@ -16,6 +17,7 @@ This guide will help you set up the complete CI/CD pipeline for the Magpie Book 
   - Firebase Hosting: `your-prod-project.web.app`
 
 ### **CI/CD Flow**
+
 ```
 ┌─────────────┐    ┌──────────────┐    ┌─────────────────┐
 │   develop   │───▶│   CI Tests   │───▶│  Deploy to Dev  │
@@ -35,6 +37,7 @@ This guide will help you set up the complete CI/CD pipeline for the Magpie Book 
 ### **1. GCP Project Setup**
 
 #### **Development Environment**
+
 ```bash
 # Make the script executable
 chmod +x scripts/setup-gcp-dev.sh
@@ -44,6 +47,7 @@ chmod +x scripts/setup-gcp-dev.sh
 ```
 
 #### **Production Environment**
+
 ```bash
 # Make the script executable
 chmod +x scripts/setup-gcp-prod.sh
@@ -55,6 +59,7 @@ chmod +x scripts/setup-gcp-prod.sh
 ### **2. Firebase Setup**
 
 #### **Initialize Firebase Projects**
+
 ```bash
 # Install Firebase CLI
 npm install -g firebase-tools
@@ -85,14 +90,15 @@ Go to your GitHub repository → **Settings** → **Secrets and variables** → 
 
 #### **Required Secrets**
 
-| Secret Name | Description | Source |
-|-------------|-------------|---------|
-| `GCP_SA_KEY_DEV` | Development GCP service account key | `github-actions-dev-key.json` |
-| `GCP_SA_KEY_PROD` | Production GCP service account key | `github-actions-prod-key.json` |
-| `FIREBASE_SERVICE_ACCOUNT_DEV` | Firebase service account for dev | Firebase Console |
-| `FIREBASE_SERVICE_ACCOUNT_PROD` | Firebase service account for prod | Firebase Console |
+| Secret Name                     | Description                         | Source                         |
+| ------------------------------- | ----------------------------------- | ------------------------------ |
+| `GCP_SA_KEY_DEV`                | Development GCP service account key | `github-actions-dev-key.json`  |
+| `GCP_SA_KEY_PROD`               | Production GCP service account key  | `github-actions-prod-key.json` |
+| `FIREBASE_SERVICE_ACCOUNT_DEV`  | Firebase service account for dev    | Firebase Console               |
+| `FIREBASE_SERVICE_ACCOUNT_PROD` | Firebase service account for prod   | Firebase Console               |
 
 #### **Adding Secrets**
+
 ```bash
 # 1. Copy the entire contents of the JSON files
 cat github-actions-dev-key.json
@@ -107,6 +113,7 @@ cat github-actions-dev-key.json
 ### **4. GitHub Environment Protection**
 
 #### **Set up Production Environment Protection**
+
 1. Go to **Settings** → **Environments**
 2. Click **New environment**
 3. Name: `production`
@@ -118,6 +125,7 @@ cat github-actions-dev-key.json
 ### **5. Branch Setup**
 
 #### **Create Development Branch**
+
 ```bash
 # Create and switch to develop branch
 git checkout -b develop
@@ -135,6 +143,7 @@ git push -u origin develop
 ### **Environment Variables**
 
 #### **Development (Cloud Run)**
+
 ```env
 GOOGLE_CLOUD_PROJECT_ID=your-dev-project-id
 FIRESTORE_DATABASE_ID=your-dev-database-name
@@ -143,6 +152,7 @@ PORT=3000
 ```
 
 #### **Production (Cloud Run)**
+
 ```env
 GOOGLE_CLOUD_PROJECT_ID=your-prod-project-id
 FIRESTORE_DATABASE_ID=your-prod-database-name
@@ -162,7 +172,7 @@ service cloud.firestore {
     match /books/{isbn} {
       // Allow read/write for now (adjust based on your auth requirements)
       allow read, write: if true;
-      
+
       // For production with authentication:
       // allow read, write: if request.auth != null;
     }
@@ -173,6 +183,7 @@ service cloud.firestore {
 ## 🧪 **Testing the Pipeline**
 
 ### **1. Test Development Deployment**
+
 ```bash
 # Create a feature branch
 git checkout -b feature/test-pipeline
@@ -191,6 +202,7 @@ git push origin develop
 ```
 
 ### **2. Test Production Deployment**
+
 ```bash
 # Create a pull request from develop to main
 # Or push directly to main (if allowed)
@@ -206,6 +218,7 @@ git push origin main
 ### **Check Deployments**
 
 #### **Cloud Run Services**
+
 ```bash
 # Development
 gcloud run services list --project=your-dev-project-id
@@ -215,6 +228,7 @@ gcloud run services list --project=your-prod-project-id
 ```
 
 #### **Firebase Hosting**
+
 ```bash
 # Check hosting sites
 firebase hosting:sites:list --project=your-dev-project-id
@@ -222,6 +236,7 @@ firebase hosting:sites:list --project=your-prod-project-id
 ```
 
 #### **Test API Endpoints**
+
 ```bash
 # Development
 curl https://your-backend-dev-xxx-uc.a.run.app/api/health
@@ -233,16 +248,19 @@ curl https://your-backend-prod-xxx-uc.a.run.app/api/health
 ## 🔒 **Security Considerations**
 
 ### **Service Account Permissions**
+
 - GitHub Actions service accounts have minimal required permissions
 - Cloud Run service accounts only have Firestore and Secret Manager access
 - Firebase service accounts are project-specific
 
 ### **Secrets Management**
+
 - All sensitive data stored in GCP Secret Manager
 - GitHub secrets are encrypted at rest
 - Service account keys should be rotated regularly
 
 ### **Network Security**
+
 - Cloud Run services allow unauthenticated access (adjust if needed)
 - Firestore rules should be configured based on your authentication requirements
 - CORS is configured for your specific domains
@@ -252,6 +270,7 @@ curl https://your-backend-prod-xxx-uc.a.run.app/api/health
 ### **Common Issues**
 
 #### **1. Service Account Permission Errors**
+
 ```bash
 # Check service account permissions
 gcloud projects get-iam-policy your-dev-project-id
@@ -263,6 +282,7 @@ gcloud projects add-iam-policy-binding your-dev-project-id \
 ```
 
 #### **2. Firestore Database Not Found**
+
 ```bash
 # List databases
 gcloud firestore databases list --project=your-dev-project-id
@@ -275,6 +295,7 @@ gcloud firestore databases create \
 ```
 
 #### **3. Cloud Run Deployment Fails**
+
 ```bash
 # Check Cloud Run logs
 gcloud logging read "resource.type=cloud_run_revision" \
@@ -283,6 +304,7 @@ gcloud logging read "resource.type=cloud_run_revision" \
 ```
 
 #### **4. Firebase Deployment Fails**
+
 ```bash
 # Check Firebase project access
 firebase projects:list
@@ -303,6 +325,7 @@ firebase login --reauth
 ## 🎉 **Success!**
 
 Once everything is set up, you'll have:
+
 - ✅ Automated testing on every PR
 - ✅ Automatic deployment to dev on `develop` branch pushes
 - ✅ Protected production deployment on `main` branch pushes

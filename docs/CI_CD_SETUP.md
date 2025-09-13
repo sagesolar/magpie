@@ -5,8 +5,9 @@
 ## ✅ **Security Improvements Applied**
 
 ### **🛡️ What's Been Secured:**
+
 - ✅ **All project IDs** moved to GitHub secrets
-- ✅ **Database names** moved to GitHub secrets  
+- ✅ **Database names** moved to GitHub secrets
 - ✅ **Service names** moved to GitHub secrets
 - ✅ **Region configurations** moved to GitHub secrets
 - ✅ **Setup scripts** now prompt for values instead of hardcoding
@@ -14,6 +15,7 @@
 - ✅ **Security guide** created (`docs/SECURITY.md`)
 
 ### **🔑 Required GitHub Secrets:**
+
 ```
 GCP_PROJECT_ID_DEV              # Your development GCP project ID
 GCP_PROJECT_ID_PROD             # Your production GCP project ID
@@ -31,19 +33,23 @@ FIREBASE_SERVICE_ACCOUNT_PROD   # Firebase prod service account JSON
 ```
 
 ### **GitHub Actions Workflows**
+
 - `ci.yml` - Continuous Integration (tests, linting, security audit)
 - `deploy-dev.yml` - Development environment deployment
 - `deploy-prod.yml` - Production environment deployment (with protection)
 
 ### **Docker Configuration**
+
 - `Dockerfile` - Multi-stage build for production
 - `.dockerignore` - Optimized Docker context
 
 ### **Firebase Configuration**
+
 - `firebase.json` - Hosting configuration with PWA optimizations
 - `.firebaserc` - Multi-project configuration (dev/prod)
 
 ### **GCP Setup Scripts**
+
 - `scripts/setup-gcp-dev.sh` - Development environment setup
 - `scripts/setup-gcp-prod.sh` - Production environment setup
 - `scripts/setup-github-secrets.sh` - GitHub secrets helper
@@ -51,6 +57,7 @@ FIREBASE_SERVICE_ACCOUNT_PROD   # Firebase prod service account JSON
 - `scripts/validate-setup.sh` - Setup validation
 
 ### **Documentation**
+
 - `docs/DEPLOYMENT.md` - Comprehensive deployment guide
 - Updated `README.md` - Firestore configuration
 
@@ -81,11 +88,13 @@ FIREBASE_SERVICE_ACCOUNT_PROD   # Firebase prod service account JSON
 ## 🚀 **Deployment Flow**
 
 ### **Development**
+
 ```
 develop branch push → CI Tests → Build Docker → Deploy Cloud Run → Deploy PWA
 ```
 
 ### **Production**
+
 ```
 main branch push → CI Tests → Manual Approval → Build Docker → Deploy Cloud Run → Deploy PWA
 ```
@@ -93,32 +102,37 @@ main branch push → CI Tests → Manual Approval → Build Docker → Deploy Cl
 ## 📋 **Setup Checklist**
 
 ### **Prerequisites** (Run First)
+
 - [ ] Install Google Cloud CLI
 - [ ] Install Firebase CLI (`npm install -g firebase-tools`)
 - [ ] Have Docker installed
 - [ ] Have access to both GCP projects
 
 ### **GCP Configuration**
+
 - [ ] Run `./scripts/setup-gcp-dev.sh`
 - [ ] Run `./scripts/setup-gcp-prod.sh`
 - [ ] Verify Firestore databases are created
 - [ ] Note the generated service account key files
 
 ### **Firebase Setup**
+
 - [ ] Run `firebase login`
 - [ ] Initialize Firebase projects
 - [ ] Get Firebase service account keys from console
 
 ### **GitHub Configuration**
+
 - [ ] Add repository secrets:
   - `GCP_SA_KEY_DEV`
-  - `GCP_SA_KEY_PROD`  
+  - `GCP_SA_KEY_PROD`
   - `FIREBASE_SERVICE_ACCOUNT_DEV`
   - `FIREBASE_SERVICE_ACCOUNT_PROD`
 - [ ] Set up production environment protection
 - [ ] Create `develop` branch
 
 ### **Testing**
+
 - [ ] Run `./scripts/validate-setup.sh`
 - [ ] Push to `develop` branch to test dev deployment
 - [ ] Push to `main` branch to test prod deployment
@@ -151,11 +165,13 @@ git push origin main
 ## 🌐 **Expected URLs After Deployment**
 
 ### **Development**
+
 - **API**: `https://your-backend-dev-xxx-uc.a.run.app`
 - **PWA**: `https://your-dev-project.web.app`
 - **Health**: `https://your-backend-dev-xxx-uc.a.run.app/api/health`
 
 ### **Production**
+
 - **API**: `https://your-backend-prod-xxx-uc.a.run.app`
 - **PWA**: `https://your-prod-project.web.app`
 - **Health**: `https://your-backend-prod-xxx-uc.a.run.app/api/health`
@@ -171,6 +187,7 @@ git push origin main
 ## 📊 **Monitoring & Observability**
 
 The pipeline includes:
+
 - **Health Checks**: Docker health checks and API health endpoints
 - **Logging**: Cloud Run automatic logging
 - **Error Tracking**: Build and deployment error reporting
@@ -198,6 +215,7 @@ The pipeline includes:
 ## 🎉 **You're Ready to Deploy!**
 
 Your Magpie Book Collection System now has:
+
 - ✅ **Professional CI/CD pipeline**
 - ✅ **Scalable cloud infrastructure**
 - ✅ **Secure secret management**

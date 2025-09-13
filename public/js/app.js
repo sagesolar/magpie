@@ -10,7 +10,7 @@ class MagpieApp {
     this.books = [];
     this.filteredBooks = [];
     this.isInitialized = false;
-    
+
     this.init();
   }
 
@@ -18,24 +18,23 @@ class MagpieApp {
     try {
       // Initialize IndexedDB
       await bookDB.init();
-      
+
       // Load initial data
       await this.loadBooks();
-      
+
       // Setup event listeners
       this.setupEventListeners();
-      
+
       // Update UI
       this.updateConnectionStatus();
       this.renderBooks();
       this.populateGenreFilter();
-      
+
       // Pre-cache cover images for offline use
       this.cacheCoverImages();
-      
+
       this.isInitialized = true;
       console.log('Magpie app initialized successfully');
-      
     } catch (error) {
       console.error('Failed to initialize app:', error);
       this.showToast('Failed to initialize app', 'error');
@@ -46,13 +45,13 @@ class MagpieApp {
     // Online/offline status
     window.addEventListener('online', () => this.updateConnectionStatus());
     window.addEventListener('offline', () => this.updateConnectionStatus());
-    
+
     // Sync completion
-    window.addEventListener('syncComplete', (event) => {
+    window.addEventListener('syncComplete', event => {
       this.showToast(`Synced ${event.detail.syncedCount} changes`, 'success');
       this.loadBooks(); // Refresh data
     });
-    
+
     // Search input
     const searchInput = document.getElementById('searchInput');
     if (searchInput) {
@@ -61,8 +60,8 @@ class MagpieApp {
           this.clearSearch();
         }
       });
-      
-      searchInput.addEventListener('keypress', (e) => {
+
+      searchInput.addEventListener('keypress', e => {
         if (e.key === 'Enter') {
           this.searchBooks();
         }
@@ -76,7 +75,7 @@ class MagpieApp {
       // Always load from local database first
       this.books = await bookDB.getAllBooks();
       this.filteredBooks = [...this.books];
-      
+
       // Try to sync with server if online
       if (navigator.onLine) {
         try {
@@ -88,10 +87,9 @@ class MagpieApp {
           console.warn('Sync failed, using offline data:', error);
         }
       }
-      
+
       this.renderBooks();
       this.populateGenreFilter();
-      
     } catch (error) {
       console.error('Failed to load books:', error);
       this.showToast('Failed to load books', 'error');
@@ -105,7 +103,7 @@ class MagpieApp {
         const registration = await navigator.serviceWorker.ready;
         if (registration.active) {
           registration.active.postMessage({
-            type: 'CACHE_IMAGES'
+            type: 'CACHE_IMAGES',
           });
           console.log('Requested cover image caching');
         }
@@ -120,7 +118,7 @@ class MagpieApp {
     const statusDot = document.getElementById('connectionStatus');
     const statusText = document.getElementById('connectionText');
     const syncButton = document.getElementById('syncButton');
-    
+
     if (navigator.onLine) {
       statusDot.classList.remove('offline');
       statusText.textContent = 'Online';
@@ -136,14 +134,16 @@ class MagpieApp {
   switchTab(tabName) {
     // Remove active class from all tabs and content
     document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-    
+    document
+      .querySelectorAll('.tab-content')
+      .forEach(content => content.classList.remove('active'));
+
     // Add active class to selected tab and content
     event.target.classList.add('active');
     document.getElementById(`${tabName}-tab`).classList.add('active');
-    
+
     this.currentTab = tabName;
-    
+
     // Load tab-specific content
     switch (tabName) {
       case 'collection':
@@ -164,7 +164,7 @@ class MagpieApp {
   // Book Rendering
   renderBooks() {
     const container = document.getElementById('booksContainer');
-    
+
     if (!this.filteredBooks.length) {
       container.innerHTML = `
         <div class="empty-state">
@@ -181,10 +181,12 @@ class MagpieApp {
   }
 
   renderBookCard(book) {
-    const syncIndicator = book.needsSync ? '<span class="sync-indicator pending"></span>' : '<span class="sync-indicator"></span>';
-    
+    const syncIndicator = book.needsSync
+      ? '<span class="sync-indicator pending"></span>'
+      : '<span class="sync-indicator"></span>';
+
     // Generate a consistent color based on the book title
-    const getBookColor = (title) => {
+    const getBookColor = title => {
       const colors = [
         'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
         'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
@@ -193,7 +195,7 @@ class MagpieApp {
         'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
         'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
         'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)',
-        'linear-gradient(135deg, #ff8a80 0%, #ff5722 100%)'
+        'linear-gradient(135deg, #ff8a80 0%, #ff5722 100%)',
       ];
       let hash = 0;
       for (let i = 0; i < title.length; i++) {
@@ -202,17 +204,17 @@ class MagpieApp {
       return colors[Math.abs(hash) % colors.length];
     };
 
-    const coverElement = book.coverImageUrl 
+    const coverElement = book.coverImageUrl
       ? `<img src="${book.coverImageUrl}" alt="${book.title}" class="book-cover-image" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">`
       : '';
-    
+
     const placeholderCover = `
       <div class="book-cover-placeholder" style="background: ${getBookColor(book.title)}; ${book.coverImageUrl ? 'display: none;' : ''}">
         <div class="placeholder-title">${book.title.length > 30 ? book.title.substring(0, 27) + '...' : book.title}</div>
         <div class="placeholder-author">${book.authors[0]}</div>
       </div>
     `;
-    
+
     return `
       <div class="book-card">
         <div class="book-cover-container">
@@ -264,7 +266,7 @@ class MagpieApp {
   renderFavourites() {
     const container = document.getElementById('favouritesContainer');
     const favourites = this.books.filter(book => book.isFavourite);
-    
+
     if (!favourites.length) {
       container.innerHTML = `
         <div class="empty-state">
@@ -283,7 +285,7 @@ class MagpieApp {
     const container = document.getElementById('wishlistContainer');
     // For now, wishlist shows unread books
     const wishlist = this.books.filter(book => !book.isRead);
-    
+
     if (!wishlist.length) {
       container.innerHTML = `
         <div class="empty-state">
@@ -301,7 +303,7 @@ class MagpieApp {
   renderLoans() {
     const container = document.getElementById('loansContainer');
     const loans = this.books.filter(book => book.loanedTo);
-    
+
     if (!loans.length) {
       container.innerHTML = `
         <div class="empty-state">
@@ -319,7 +321,7 @@ class MagpieApp {
   // Search and Filtering
   async searchBooks() {
     const query = document.getElementById('searchInput').value.trim();
-    
+
     if (!query) {
       this.clearSearch();
       return;
@@ -344,11 +346,11 @@ class MagpieApp {
   async applyFilters() {
     const genreFilter = document.getElementById('genreFilter').value;
     const readFilter = document.getElementById('readFilter').value;
-    
+
     const filters = {};
     if (genreFilter) filters.genre = genreFilter;
     if (readFilter !== '') filters.isRead = readFilter === 'true';
-    
+
     try {
       const results = await bookDB.getBooksByFilter(filters);
       this.filteredBooks = results;
@@ -369,7 +371,7 @@ class MagpieApp {
   populateGenreFilter() {
     const genreFilter = document.getElementById('genreFilter');
     const genres = [...new Set(this.books.map(book => book.genre).filter(Boolean))];
-    
+
     genreFilter.innerHTML = '<option value="">All Genres</option>';
     genres.forEach(genre => {
       genreFilter.innerHTML += `<option value="${genre}">${genre}</option>`;
@@ -384,7 +386,10 @@ class MagpieApp {
         book.isFavourite = !book.isFavourite;
         await bookDB.saveBook(book);
         await this.loadBooks();
-        this.showToast(`Book ${book.isFavourite ? 'added to' : 'removed from'} favourites`, 'success');
+        this.showToast(
+          `Book ${book.isFavourite ? 'added to' : 'removed from'} favourites`,
+          'success'
+        );
       }
     } catch (error) {
       console.error('Toggle favourite failed:', error);
@@ -409,7 +414,7 @@ class MagpieApp {
 
   async deleteBook(isbn) {
     if (!confirm('Are you sure you want to delete this book?')) return;
-    
+
     try {
       await bookDB.deleteBook(isbn);
       await this.loadBooks();
@@ -432,7 +437,7 @@ class MagpieApp {
     try {
       const book = await bookDB.getBook(isbn);
       if (!book) return;
-      
+
       document.getElementById('modalTitle').textContent = 'Edit Book';
       document.getElementById('isbnInput').value = book.isbn;
       document.getElementById('titleInput').value = book.title;
@@ -447,7 +452,7 @@ class MagpieApp {
       document.getElementById('notesInput').value = book.notes || '';
       document.getElementById('isReadInput').checked = book.isRead;
       document.getElementById('isFavouriteInput').checked = book.isFavourite;
-      
+
       document.getElementById('bookModal').classList.add('active');
       this.currentBook = book;
     } catch (error) {
@@ -463,12 +468,16 @@ class MagpieApp {
 
   async saveBook(event) {
     event.preventDefault();
-    
+
     const formData = new FormData(event.target);
     const bookData = {
       isbn: document.getElementById('isbnInput').value.trim(),
       title: document.getElementById('titleInput').value.trim(),
-      authors: document.getElementById('authorsInput').value.split(',').map(a => a.trim()).filter(Boolean),
+      authors: document
+        .getElementById('authorsInput')
+        .value.split(',')
+        .map(a => a.trim())
+        .filter(Boolean),
       publicationDate: document.getElementById('publicationDateInput').value || undefined,
       publisher: document.getElementById('publisherInput').value.trim() || undefined,
       pageCount: parseInt(document.getElementById('pageCountInput').value) || undefined,
@@ -482,7 +491,7 @@ class MagpieApp {
       dateAdded: this.currentBook?.dateAdded || new Date().toISOString(),
       dateUpdated: new Date().toISOString(),
       isOfflineOnly: !navigator.onLine,
-      needsSync: true
+      needsSync: true,
     };
 
     try {
@@ -505,7 +514,7 @@ class MagpieApp {
 
     try {
       const bookData = await apiService.getExternalBookData(isbn);
-      
+
       if (bookData) {
         document.getElementById('titleInput').value = bookData.title || '';
         document.getElementById('authorsInput').value = bookData.authors?.join(', ') || '';
@@ -515,7 +524,7 @@ class MagpieApp {
         document.getElementById('genreInput').value = bookData.genre || '';
         document.getElementById('descriptionInput').value = bookData.description || '';
         document.getElementById('coverImageUrlInput').value = bookData.coverImageUrl || '';
-        
+
         this.showToast('Book data fetched successfully', 'success');
       }
     } catch (error) {
@@ -530,7 +539,7 @@ class MagpieApp {
       this.showToast('Camera not supported on this device', 'error');
       return;
     }
-    
+
     document.getElementById('cameraModal').classList.add('active');
     this.initCamera();
   }
@@ -539,7 +548,8 @@ class MagpieApp {
     try {
       const video = document.getElementById('cameraVideo');
       await cameraOCRService.initCamera(video);
-      document.getElementById('scanStatus').textContent = 'Camera ready. Click "Start Scanning" to begin.';
+      document.getElementById('scanStatus').textContent =
+        'Camera ready. Click "Start Scanning" to begin.';
     } catch (error) {
       console.error('Camera init failed:', error);
       this.showToast('Failed to access camera', 'error');
@@ -551,21 +561,21 @@ class MagpieApp {
     const startBtn = document.getElementById('startScanBtn');
     const stopBtn = document.getElementById('stopScanBtn');
     const status = document.getElementById('scanStatus');
-    
+
     startBtn.style.display = 'none';
     stopBtn.style.display = 'block';
     status.textContent = 'Scanning for ISBN...';
-    
+
     try {
       await cameraOCRService.startScanning(
-        (isbn) => {
+        isbn => {
           this.closeCameraModal();
           this.showAddBookModal();
           document.getElementById('isbnInput').value = isbn;
           this.fetchBookData();
           this.showToast(`ISBN ${isbn} detected!`, 'success');
         },
-        (error) => {
+        error => {
           console.error('Scan error:', error);
           status.textContent = 'Scan failed. Try again.';
         }
@@ -581,9 +591,9 @@ class MagpieApp {
     const startBtn = document.getElementById('startScanBtn');
     const stopBtn = document.getElementById('stopScanBtn');
     const status = document.getElementById('scanStatus');
-    
+
     cameraOCRService.stopScanning();
-    
+
     startBtn.style.display = 'block';
     stopBtn.style.display = 'none';
     status.textContent = 'Scanning stopped.';
@@ -599,7 +609,7 @@ class MagpieApp {
   showLoanModal(isbn) {
     this.currentBook = { isbn };
     const book = this.books.find(b => b.isbn === isbn);
-    
+
     if (book?.loanedTo) {
       document.getElementById('loanedToInput').value = book.loanedTo;
       document.getElementById('loanDateInput').value = book.loanDate || '';
@@ -607,16 +617,16 @@ class MagpieApp {
       document.getElementById('loanForm').reset();
       document.getElementById('loanDateInput').value = new Date().toISOString().split('T')[0];
     }
-    
+
     document.getElementById('loanModal').classList.add('active');
   }
 
   async saveLoan(event) {
     event.preventDefault();
-    
+
     const loanedTo = document.getElementById('loanedToInput').value.trim();
     const loanDate = document.getElementById('loanDateInput').value;
-    
+
     try {
       const book = await bookDB.getBook(this.currentBook.isbn);
       if (book) {
@@ -625,7 +635,7 @@ class MagpieApp {
         await bookDB.saveBook(book);
         await this.loadBooks();
         this.closeLoanModal();
-        
+
         if (loanedTo) {
           this.showToast(`Book loaned to ${loanedTo}`, 'success');
         } else {
@@ -669,10 +679,10 @@ class MagpieApp {
 
   showToast(message, type = 'info') {
     const toast = document.getElementById('toast');
-    
+
     // Add icon based on toast type
     let icon = '';
-    switch(type) {
+    switch (type) {
       case 'success':
         icon = '✓';
         break;
@@ -684,7 +694,7 @@ class MagpieApp {
         icon = 'ℹ';
         break;
     }
-    
+
     toast.innerHTML = `${icon} ${message}`;
     toast.className = `toast ${type}`;
     toast.classList.add('show');

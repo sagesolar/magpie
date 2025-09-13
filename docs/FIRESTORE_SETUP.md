@@ -48,11 +48,13 @@ This guide will help you configure Google Cloud Firestore for the Magpie Book Co
 #### Option B: Application Default Credentials (Development)
 
 1. Install Google Cloud CLI:
+
    ```bash
    npm install -g @google-cloud/cli
    ```
 
 2. Authenticate with your Google account:
+
    ```bash
    gcloud auth application-default login
    ```
@@ -101,11 +103,13 @@ service cloud.firestore {
 ### 6. Test the Connection
 
 1. Start your Magpie server:
+
    ```bash
    npm run dev
    ```
 
 2. Test the health endpoint:
+
    ```bash
    curl http://localhost:3000/api/health
    ```

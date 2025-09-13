@@ -3,6 +3,7 @@
 ## 🚨 **Security Best Practices for Public Repositories**
 
 ### **⚠️ Never Commit These to Public Repos:**
+
 - GCP Project IDs
 - Database names
 - Service account keys
@@ -18,21 +19,21 @@ Add these secrets to GitHub → Settings → Secrets and variables → Actions:
 
 #### **📋 Required GitHub Secrets**
 
-| Secret Name | Description | Example Value |
-|-------------|-------------|---------------|
-| `GCP_PROJECT_ID_DEV` | Development GCP Project ID | `your-dev-project-id` |
-| `GCP_PROJECT_ID_PROD` | Production GCP Project ID | `your-prod-project-id` |
-| `CLOUD_RUN_SERVICE_DEV` | Dev Cloud Run service name | `your-backend-dev` |
-| `CLOUD_RUN_SERVICE_PROD` | Prod Cloud Run service name | `your-backend-prod` |
-| `CLOUD_RUN_REGION` | Cloud Run region | `us-central1` |
-| `FIREBASE_PROJECT_ID_DEV` | Firebase dev project ID | `your-dev-project-id` |
-| `FIREBASE_PROJECT_ID_PROD` | Firebase prod project ID | `your-prod-project-id` |
-| `FIRESTORE_DATABASE_ID_DEV` | Firestore dev database name | `your-dev-db-name` |
-| `FIRESTORE_DATABASE_ID_PROD` | Firestore prod database name | `your-prod-db-name` |
-| `GCP_SA_KEY_DEV` | Development service account JSON | `{...}` |
-| `GCP_SA_KEY_PROD` | Production service account JSON | `{...}` |
-| `FIREBASE_SERVICE_ACCOUNT_DEV` | Firebase dev service account | `{...}` |
-| `FIREBASE_SERVICE_ACCOUNT_PROD` | Firebase prod service account | `{...}` |
+| Secret Name                     | Description                      | Example Value          |
+| ------------------------------- | -------------------------------- | ---------------------- |
+| `GCP_PROJECT_ID_DEV`            | Development GCP Project ID       | `your-dev-project-id`  |
+| `GCP_PROJECT_ID_PROD`           | Production GCP Project ID        | `your-prod-project-id` |
+| `CLOUD_RUN_SERVICE_DEV`         | Dev Cloud Run service name       | `your-backend-dev`     |
+| `CLOUD_RUN_SERVICE_PROD`        | Prod Cloud Run service name      | `your-backend-prod`    |
+| `CLOUD_RUN_REGION`              | Cloud Run region                 | `us-central1`          |
+| `FIREBASE_PROJECT_ID_DEV`       | Firebase dev project ID          | `your-dev-project-id`  |
+| `FIREBASE_PROJECT_ID_PROD`      | Firebase prod project ID         | `your-prod-project-id` |
+| `FIRESTORE_DATABASE_ID_DEV`     | Firestore dev database name      | `your-dev-db-name`     |
+| `FIRESTORE_DATABASE_ID_PROD`    | Firestore prod database name     | `your-prod-db-name`    |
+| `GCP_SA_KEY_DEV`                | Development service account JSON | `{...}`                |
+| `GCP_SA_KEY_PROD`               | Production service account JSON  | `{...}`                |
+| `FIREBASE_SERVICE_ACCOUNT_DEV`  | Firebase dev service account     | `{...}`                |
+| `FIREBASE_SERVICE_ACCOUNT_PROD` | Firebase prod service account    | `{...}`                |
 
 ### **2. Local Development Configuration**
 
@@ -48,6 +49,7 @@ GOOGLE_APPLICATION_CREDENTIALS=./path/to/your/local-service-account.json
 ### **3. Repository Security Checklist**
 
 #### **✅ Files Safe for Public Repository:**
+
 - Source code without hardcoded secrets
 - Generic configuration templates
 - Documentation with placeholder values
@@ -55,6 +57,7 @@ GOOGLE_APPLICATION_CREDENTIALS=./path/to/your/local-service-account.json
 - Docker configurations
 
 #### **❌ Files to Keep Private/Secured:**
+
 - `.env` files with real values
 - Service account JSON files
 - Any file with actual project IDs
@@ -74,6 +77,7 @@ firebase use --add your-actual-prod-project-id
 ### **Step 2: Add GitHub Secrets**
 
 Go to your GitHub repository:
+
 1. Settings → Secrets and variables → Actions
 2. Click "New repository secret"
 3. Add each secret from the table above
@@ -104,29 +108,33 @@ export const config = {
     projectId: process.env.GOOGLE_CLOUD_PROJECT_ID!,
     databaseId: process.env.FIRESTORE_DATABASE_ID!,
     // ... other prod config
-  }
+  },
 };
 ```
 
 ## 🛡️ **Additional Security Measures**
 
 ### **1. Repository Settings**
+
 - Consider making the repository private if it contains business logic
 - Enable branch protection rules
 - Require pull request reviews
 - Enable secret scanning alerts
 
 ### **2. Access Control**
+
 - Limit collaborator access
 - Use teams for permission management
 - Regularly audit repository access
 
 ### **3. Monitoring**
+
 - Enable GitHub security advisories
 - Set up Dependabot for dependency updates
 - Monitor for leaked secrets
 
 ### **4. Documentation Security**
+
 - Use placeholder values in all documentation
 - Create separate private documentation for actual deployment values
 - Include security warnings in README
@@ -136,6 +144,7 @@ export const config = {
 If you've already committed sensitive data:
 
 ### **1. Clean Git History**
+
 ```bash
 # Remove sensitive files from Git history
 git filter-branch --force --index-filter \
@@ -147,12 +156,14 @@ git push origin --force --all
 ```
 
 ### **2. Rotate All Secrets**
+
 - Generate new service account keys
 - Update all API keys
 - Change database names if necessary
 - Update any exposed resource names
 
 ### **3. Update Team**
+
 - Notify team members about the security update
 - Ensure everyone updates their local configurations
 - Review and update deployment procedures
@@ -160,6 +171,7 @@ git push origin --force --all
 ## 🌟 **Best Practices Summary**
 
 ### **✅ DO:**
+
 - Use GitHub secrets for all sensitive data
 - Use placeholder values in committed files
 - Keep a separate private document with actual values
@@ -167,6 +179,7 @@ git push origin --force --all
 - Monitor for accidental commits of secrets
 
 ### **❌ DON'T:**
+
 - Hardcode project IDs in public repositories
 - Commit service account files
 - Expose internal infrastructure details
