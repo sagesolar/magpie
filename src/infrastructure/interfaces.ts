@@ -20,6 +20,7 @@ export interface BookRepository {
   update(isbn: string, updates: UpdateBookDto): Promise<Book | null>;
   delete(isbn: string): Promise<boolean>;
   search(query: string): Promise<Book[]>;
+  close(): Promise<void>;
 }
 
 // External book data service interface

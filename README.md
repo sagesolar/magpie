@@ -43,7 +43,7 @@ src/
 │   └── book.usecase.ts
 ├── infrastructure/   # External services and data access
 │   ├── interfaces.ts
-│   ├── sqlite-book.repository.ts
+│   ├── firestore-book.repository.ts
 │   └── external-book.service.ts
 ├── api/             # REST API controllers and routes
 │   ├── book.controller.ts
@@ -143,8 +143,9 @@ src/
 PORT=3000
 NODE_ENV=development
 
-# Database Configuration
-DB_PATH=./magpie.db
+# Google Cloud Firestore Configuration
+GOOGLE_CLOUD_PROJECT_ID=your-project-id
+GOOGLE_APPLICATION_CREDENTIALS=path/to/service-account.json
 
 # CORS Configuration
 ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8080
@@ -152,7 +153,39 @@ ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8080
 
 ### Database
 
-The system uses SQLite for simplicity and portability. The database file will be created automatically on first run.
+The system uses **Google Cloud Firestore** as its NoSQL document database, providing:
+
+- **Scalability**: Automatically scales based on demand
+- **Real-time updates**: Live synchronization across clients
+- **Offline support**: Built-in offline capabilities
+- **Security**: Fine-grained security rules
+- **Global distribution**: Multi-region data replication
+
+#### Firestore Setup
+
+1. **Create a Google Cloud Project**: 
+   - Go to [Google Cloud Console](https://console.cloud.google.com/)
+   - Create a new project or select an existing one
+
+2. **Enable Firestore**:
+   - Navigate to Firestore in the Google Cloud Console
+   - Select "Create database" and choose your region
+
+3. **Authentication Setup**:
+   - **Option A**: Service Account (Recommended for production)
+     - Create a service account in IAM & Admin
+     - Generate and download the JSON key file
+     - Set `GOOGLE_APPLICATION_CREDENTIALS` to the file path
+   
+   - **Option B**: Application Default Credentials (Development)
+     - Install Google Cloud CLI: `npm install -g @google-cloud/cli`
+     - Run: `gcloud auth application-default login`
+
+4. **Environment Configuration**:
+   ```env
+   GOOGLE_CLOUD_PROJECT_ID=your-project-id
+   GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
+   ```
 
 ## 🛠️ Development
 
@@ -345,7 +378,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🙏 Acknowledgments
 
 - Built with modern TypeScript and Node.js
-- Uses SQLite for simple, file-based storage
+- Uses Google Cloud Firestore for scalable NoSQL storage
 - Progressive Web App capabilities
 - Clean Architecture principles
 - SOLID design patterns
