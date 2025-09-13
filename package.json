@@ -1,0 +1,57 @@
+{
+  "name": "magpie-book-collection",
+  "version": "1.0.0",
+  "description": "A book collection management system with REST API backend and PWA frontend",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:ci": "jest --ci --coverage --watchAll=false",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "format:staged": "prettier --write",
+    "check": "npm run lint && npm run format:check && npm run build",
+    "check:all": "npm run lint && npm run format:check && npm run test && npm run build"
+  },
+  "keywords": [
+    "book",
+    "collection",
+    "pwa",
+    "rest-api",
+    "typescript"
+  ],
+  "author": "sagesolar",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/cors": "^2.8.14",
+    "@types/express": "^4.17.17",
+    "@types/jest": "^29.5.5",
+    "@types/node": "^20.6.0",
+    "@types/node-fetch": "^2.6.4",
+    "@types/sqlite3": "^3.1.8",
+    "@types/supertest": "^6.0.3",
+    "@typescript-eslint/eslint-plugin": "^6.7.0",
+    "@typescript-eslint/parser": "^6.7.0",
+    "eslint": "^8.49.0",
+    "jest": "^29.7.0",
+    "prettier": "^3.6.2",
+    "supertest": "^7.1.4",
+    "ts-jest": "^29.1.1",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.2.2"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "node-fetch": "^3.3.2",
+    "sqlite3": "^5.1.6",
+    "zod": "^3.22.2"
+  }
+}

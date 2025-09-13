@@ -1,0 +1,143 @@
+// Main server application with dependency injection
+import express, { Request, Response, NextFunction } from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import { BookController } from './api/book.controller';
+import { createBookRoutes } from './api/book.routes';
+import { BookUseCase } from './application/book.usecase';
+import { SqliteBookRepository } from './infrastructure/sqlite-book.repository';
+import { ExternalBookServiceImpl } from './infrastructure/external-book.service';
+
+// Load environment variables
+dotenv.config();
+
+class MagpieServer {
+  private app: express.Application;
+  private port: number;
+  private bookRepository: SqliteBookRepository;
+
+  constructor() {
+    this.app = express();
+    this.port = parseInt(process.env.PORT || '3000', 10);
+    this.bookRepository = new SqliteBookRepository(process.env.DB_PATH || './magpie.db');
+
+    this.setupMiddleware();
+    this.setupRoutes();
+    this.setupErrorHandling();
+  }
+
+  private setupMiddleware(): void {
+    // CORS configuration
+    this.app.use(
+      cors({
+        origin: process.env.ALLOWED_ORIGINS?.split(',') || [
+          'http://localhost:3000',
+          'http://localhost:8080',
+        ],
+        credentials: true,
+      })
+    );
+
+    // Body parsing
+    this.app.use(express.json({ limit: '10mb' }));
+    this.app.use(express.urlencoded({ extended: true }));
+
+    // Request logging
+    this.app.use((req: Request, res: Response, next: NextFunction) => {
+      console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+      next();
+    });
+
+    // Static files for PWA
+    this.app.use(express.static('public'));
+  }
+
+  private setupRoutes(): void {
+    // Dependency injection - create instances
+    const externalBookService = new ExternalBookServiceImpl();
+    const bookUseCase = new BookUseCase(this.bookRepository, externalBookService);
+    const bookController = new BookController(bookUseCase);
+
+    // Health check
+    this.app.get('/api/health', (req: Request, res: Response) => {
+      res.json({
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+        version: process.env.npm_package_version || '1.0.0',
+      });
+    });
+
+    // API routes
+    this.app.use('/api', createBookRoutes(bookController));
+
+    // Serve PWA for all other routes
+    this.app.get('*', (req: Request, res: Response) => {
+      res.sendFile('index.html', { root: 'public' });
+    });
+  }
+
+  private setupErrorHandling(): void {
+    // Global error handler
+    this.app.use((error: any, req: Request, res: Response, next: NextFunction) => {
+      console.error('Error:', error);
+
+      // Zod validation errors
+      if (error.name === 'ZodError') {
+        return res.status(400).json({
+          error: 'Validation error',
+          details: error.errors,
+        });
+      }
+
+      // Custom application errors
+      if (error.message) {
+        const statusCode = error.message.includes('not found')
+          ? 404
+          : error.message.includes('already exists')
+            ? 409
+            : 400;
+        return res.status(statusCode).json({ error: error.message });
+      }
+
+      // Generic server error
+      res.status(500).json({
+        error: 'Internal server error',
+        ...(process.env.NODE_ENV === 'development' && { details: error.message }),
+      });
+    });
+
+    // 404 handler
+    this.app.use((req: Request, res: Response) => {
+      res.status(404).json({ error: 'Endpoint not found' });
+    });
+  }
+
+  public async start(): Promise<void> {
+    try {
+      this.app.listen(this.port, () => {
+        console.log(`🐦 Magpie Book Collection Server running on port ${this.port}`);
+        console.log(`📚 API available at http://localhost:${this.port}/api`);
+        console.log(`🌐 PWA available at http://localhost:${this.port}`);
+      });
+    } catch (error) {
+      console.error('Failed to start server:', error);
+      process.exit(1);
+    }
+  }
+
+  public async shutdown(): Promise<void> {
+    console.log('Shutting down server...');
+    await this.bookRepository.close();
+    process.exit(0);
+  }
+}
+
+// Create and start server
+const server = new MagpieServer();
+
+// Graceful shutdown
+process.on('SIGTERM', () => server.shutdown());
+process.on('SIGINT', () => server.shutdown());
+
+// Start the server
+server.start().catch(console.error);
