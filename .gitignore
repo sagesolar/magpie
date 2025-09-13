@@ -114,6 +114,7 @@ build/
 !webpack.config.js
 !gulpfile.js
 !public/**/*.js
+!scripts/**/*.js
 
 # Database files
 *.db
