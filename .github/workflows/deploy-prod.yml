@@ -1,10 +1,21 @@
 name: Deploy to Production
 
 on:
-  push:
+  workflow_run:
+    workflows: ["CI Pipeline"]
+    types: [completed]
     branches: [main]
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Reason for manual production deployment'
+        required: true
+        default: 'Manual production deployment'
+      confirm:
+        description: 'Type "DEPLOY" to confirm production deployment'
+        required: true
 
 env:
   GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID_PROD }}
@@ -14,16 +25,46 @@ env:
   FIRESTORE_DATABASE_ID: ${{ secrets.FIRESTORE_DATABASE_ID_PROD }}
 
 jobs:
+  validate-manual-deployment:
+    name: Validate Manual Deployment
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Validate confirmation
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "DEPLOY" ]; then
+            echo "❌ Manual deployment not confirmed. Please type 'DEPLOY' in the confirm field."
+            exit 1
+          fi
+          echo "✅ Manual deployment confirmed"
+
   deploy-backend:
     name: Deploy Backend to Cloud Run (Prod)
     runs-on: ubuntu-latest
     environment: production
+    needs: [validate-manual-deployment]
+    if: always() && (needs.validate-manual-deployment.result == 'success' || github.event_name != 'workflow_dispatch') && (github.event_name == 'workflow_dispatch' || github.event_name == 'release' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'))
 
     permissions:
       contents: read
       id-token: write
 
     steps:
+      - name: Show deployment context
+        run: |
+          echo "🚀 Deploying to Production Environment"
+          echo "Event: ${{ github.event_name }}"
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            echo "Triggered by: ${{ github.event.workflow_run.name }}"
+            echo "Conclusion: ${{ github.event.workflow_run.conclusion }}"
+            echo "Branch: ${{ github.event.workflow_run.head_branch }}"
+            echo "Commit: ${{ github.event.workflow_run.head_sha }}"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "Manual deployment: ${{ github.event.inputs.reason }}"
+          elif [ "${{ github.event_name }}" = "release" ]; then
+            echo "Release: ${{ github.event.release.tag_name }}"
+          fi
+
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -93,7 +134,8 @@ jobs:
   deploy-frontend:
     name: Deploy PWA to Firebase Hosting (Prod)
     runs-on: ubuntu-latest
-    needs: deploy-backend
+    needs: [deploy-backend, validate-manual-deployment]
+    if: always() && needs.deploy-backend.result == 'success' && (needs.validate-manual-deployment.result == 'success' || github.event_name != 'workflow_dispatch') && (github.event_name == 'workflow_dispatch' || github.event_name == 'release' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'))
     environment: production
 
     steps:
