@@ -1,7 +1,7 @@
 {
-  "name": "magpie-book-collection",
+  "name": "magpie",
   "version": "1.0.0",
-  "description": "A book collection management system with REST API backend and PWA frontend",
+  "description": "A book collection management system",
   "main": "dist/server.js",
   "scripts": {
     "build": "tsc",
