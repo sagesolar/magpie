@@ -1,5 +1,6 @@
 const CACHE_NAME = 'magpie-v1.0.0';
 const API_CACHE_NAME = 'magpie-api-v1.0.0';
+const IMAGE_CACHE_NAME = 'magpie-images-v1.0.0';
 
 const STATIC_ASSETS = [
   '/',
@@ -9,6 +10,18 @@ const STATIC_ASSETS = [
   '/js/db.js', 
   '/js/api.js',
   '/js/camera-ocr.js',
+  '/styles/main.css',
+  '/styles/components.css',
+  '/styles/books.css',
+  '/styles/forms.css',
+  '/images/magpie-main.png',
+  '/images/magpie-square-icon.png',
+  '/images/favicons/favicon.ico',
+  '/images/favicons/favicon-16x16.png',
+  '/images/favicons/favicon-32x32.png',
+  '/images/favicons/apple-touch-icon.png',
+  '/images/favicons/android-chrome-192x192.png',
+  '/images/favicons/android-chrome-256x256.png',
   'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap',
   'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'
 ];
@@ -48,7 +61,7 @@ self.addEventListener('activate', event => {
       .then(cacheNames => {
         return Promise.all(
           cacheNames.map(cacheName => {
-            if (cacheName !== CACHE_NAME && cacheName !== API_CACHE_NAME) {
+            if (cacheName !== CACHE_NAME && cacheName !== API_CACHE_NAME && cacheName !== IMAGE_CACHE_NAME) {
               console.log('Deleting old cache:', cacheName);
               return caches.delete(cacheName);
             }
@@ -62,7 +75,7 @@ self.addEventListener('activate', event => {
   );
 });
 
-// Fetch event - network-first for API, cache-first for static assets
+// Fetch event - network-first for API, cache-first for static assets, and handle images
 self.addEventListener('fetch', event => {
   const { request } = event;
   const url = new URL(request.url);
@@ -73,9 +86,30 @@ self.addEventListener('fetch', event => {
     return;
   }
   
+  // Handle cover images (from Amazon, O'Reilly, etc.)
+  if (isImageRequest(request)) {
+    event.respondWith(handleImageRequest(request));
+    return;
+  }
+  
   // Handle static assets with cache-first strategy
   event.respondWith(handleStaticRequest(request));
 });
+
+// Check if request is for an image
+function isImageRequest(request) {
+  const url = new URL(request.url);
+  const imageHosts = [
+    'm.media-amazon.com',
+    'learning.oreilly.com',
+    'images-na.ssl-images-amazon.com',
+    'covers.openlibrary.org'
+  ];
+  
+  return imageHosts.some(host => url.hostname.includes(host)) ||
+         request.destination === 'image' ||
+         /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(url.pathname);
+}
 
 // Network-first strategy for API requests
 async function handleAPIRequest(request) {
@@ -179,6 +213,42 @@ async function handleStaticRequest(request) {
   }
 }
 
+// Cache-first strategy for images with long-term caching
+async function handleImageRequest(request) {
+  const cache = await caches.open(IMAGE_CACHE_NAME);
+  
+  // Try cache first
+  const cachedResponse = await cache.match(request);
+  if (cachedResponse) {
+    console.log('Serving image from cache:', request.url);
+    return cachedResponse;
+  }
+  
+  try {
+    // If not in cache, try network
+    const networkResponse = await fetch(request);
+    
+    // Cache successful image responses (they don't change often)
+    if (networkResponse.ok && networkResponse.status === 200) {
+      // Clone the response for caching
+      const responseToCache = networkResponse.clone();
+      cache.put(request, responseToCache);
+      console.log('Cached new image:', request.url);
+    }
+    
+    return networkResponse;
+    
+  } catch (error) {
+    console.log('Image request failed for:', request.url, error);
+    
+    // Return a proper error response to trigger CSS fallback
+    return new Response('', {
+      status: 404,
+      statusText: 'Not Found'
+    });
+  }
+}
+
 // Background sync for offline changes
 self.addEventListener('sync', event => {
   console.log('Background sync triggered:', event.tag);
@@ -264,6 +334,11 @@ self.addEventListener('message', event => {
     // Force update caches
     updateCaches();
   }
+  
+  if (event.data && event.data.type === 'CACHE_IMAGES') {
+    // Pre-cache cover images
+    preCacheCoverImages();
+  }
 });
 
 async function updateCaches() {
@@ -271,8 +346,45 @@ async function updateCaches() {
     const cache = await caches.open(CACHE_NAME);
     await cache.addAll(STATIC_ASSETS);
     console.log('Caches updated successfully');
+    
+    // Optionally pre-cache cover images from the current book collection
+    await preCacheCoverImages();
   } catch (error) {
     console.error('Failed to update caches:', error);
+  }
+}
+
+// Pre-cache cover images from the book collection
+async function preCacheCoverImages() {
+  try {
+    console.log('Pre-caching cover images...');
+    const response = await fetch('/api/books');
+    const books = await response.json();
+    
+    const imageCache = await caches.open(IMAGE_CACHE_NAME);
+    const cachePromises = [];
+    
+    for (const book of books) {
+      if (book.coverImageUrl && book.coverImageUrl.trim() !== '') {
+        cachePromises.push(
+          fetch(book.coverImageUrl)
+            .then(response => {
+              if (response.ok) {
+                return imageCache.put(book.coverImageUrl, response);
+              }
+            })
+            .catch(error => {
+              console.log('Failed to pre-cache image:', book.coverImageUrl, error);
+            })
+        );
+      }
+    }
+    
+    await Promise.allSettled(cachePromises);
+    console.log('Cover images pre-cached');
+    
+  } catch (error) {
+    console.error('Failed to pre-cache cover images:', error);
   }
 }
 
