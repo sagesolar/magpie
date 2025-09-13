@@ -85,13 +85,14 @@ export class ExternalBookServiceImpl implements ExternalBookService {
 
       return {
         title: bookData.title || '',
-        authors: bookData.authors ? bookData.authors.map((author) => author.name) : [],
+        authors: bookData.authors ? bookData.authors.map(author => author.name) : [],
         publisher: bookData.publishers ? bookData.publishers[0]?.name || '' : '',
         publishingYear: bookData.publish_date ? this.extractYear(bookData.publish_date) : 0,
         pages: bookData.number_of_pages || undefined,
-        description: typeof bookData.description === 'string' 
-          ? bookData.description 
-          : bookData.description?.value || undefined,
+        description:
+          typeof bookData.description === 'string'
+            ? bookData.description
+            : bookData.description?.value || undefined,
         coverImageUrl:
           bookData.cover?.large || bookData.cover?.medium || bookData.cover?.small || undefined,
         genre: bookData.subjects ? bookData.subjects[0]?.name : undefined,

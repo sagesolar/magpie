@@ -161,4 +161,4 @@ process.on('SIGTERM', () => server.shutdown());
 process.on('SIGINT', () => server.shutdown());
 
 // Start the server
-server.start().catch((error) => logger.error('Failed to start server', error));
+server.start().catch(error => logger.error('Failed to start server', error));
