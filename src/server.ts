@@ -114,10 +114,11 @@ class MagpieServer {
 
   public async start(): Promise<void> {
     try {
-      this.app.listen(this.port, () => {
+      this.app.listen(this.port, '0.0.0.0', () => {
         console.log(`🐦 Magpie Book Collection Server running on port ${this.port}`);
         console.log(`📚 API available at http://localhost:${this.port}/api`);
         console.log(`🌐 PWA available at http://localhost:${this.port}`);
+        console.log(`🌐 Also accessible at http://127.0.0.1:${this.port}`);
       });
     } catch (error) {
       console.error('Failed to start server:', error);
