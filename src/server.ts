@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 import { BookController } from './api/book.controller';
 import { createBookRoutes } from './api/book.routes';
 import { BookUseCase } from './application/book.usecase';
-import { SqliteBookRepository } from './infrastructure/sqlite-book.repository';
+import { FirestoreBookRepository } from './infrastructure/firestore-book.repository';
 import { ExternalBookServiceImpl } from './infrastructure/external-book.service';
 
 // Load environment variables
@@ -14,12 +14,15 @@ dotenv.config();
 class MagpieServer {
   private app: express.Application;
   private port: number;
-  private bookRepository: SqliteBookRepository;
+  private bookRepository: FirestoreBookRepository;
 
   constructor() {
     this.app = express();
     this.port = parseInt(process.env.PORT || '3000', 10);
-    this.bookRepository = new SqliteBookRepository(process.env.DB_PATH || './magpie.db');
+    this.bookRepository = new FirestoreBookRepository(
+      process.env.GOOGLE_CLOUD_PROJECT_ID,
+      process.env.GOOGLE_APPLICATION_CREDENTIALS
+    );
 
     this.setupMiddleware();
     this.setupRoutes();

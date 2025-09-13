@@ -4,7 +4,6 @@ import { BookRepository, ExternalBookService } from '../src/infrastructure/inter
 
 export class MockBookRepository implements BookRepository {
   private books: Book[] = [];
-  private nextId = 1;
 
   async create(bookData: CreateBookDto): Promise<Book> {
     const book: Book = {
@@ -19,6 +18,10 @@ export class MockBookRepository implements BookRepository {
 
   async findById(isbn: string): Promise<Book | null> {
     return this.books.find(book => book.isbn === isbn) || null;
+  }
+
+  async close(): Promise<void> {
+    // Mock implementation - no cleanup needed
   }
 
   async findAll(
