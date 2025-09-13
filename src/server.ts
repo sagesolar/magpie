@@ -21,7 +21,8 @@ class MagpieServer {
     this.port = parseInt(process.env.PORT || '3000', 10);
     this.bookRepository = new FirestoreBookRepository(
       process.env.GOOGLE_CLOUD_PROJECT_ID,
-      process.env.GOOGLE_APPLICATION_CREDENTIALS
+      process.env.GOOGLE_APPLICATION_CREDENTIALS,
+      process.env.FIRESTORE_DATABASE_ID
     );
 
     this.setupMiddleware();
