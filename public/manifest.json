@@ -1,7 +1,7 @@
 {
-  "name": "Magpie Book Collection",
+  "name": "Magpie Bibliotherapy",
   "short_name": "Magpie",
-  "description": "Your personal book collection manager with offline support",
+  "description": "Your book collection manager with offline support",
   "start_url": "/",
   "display": "standalone",
   "theme_color": "#667eea",

@@ -133,7 +133,6 @@ build/
 *.db
 *.sqlite
 *.sqlite3
-magpie.db
 
 # Logs
 logs

@@ -1,5 +1,5 @@
 {
-  "name": "magpie",
+  "name": "magpie-bibliotherapy",
   "version": "1.0.0",
   "description": "A book collection management system",
   "main": "dist/server.js",

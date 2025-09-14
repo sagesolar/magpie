@@ -19,5 +19,4 @@ tests/
 .eslintrc*
 jest.config*
 docs/
-magpie.db
 *.log

@@ -1,4 +1,4 @@
-# 🐦 Magpie Book Collection System
+# 🐦 Magpie Bibliotherapy 📚
 
 A modern, full-stack book collection management system built with clean architecture principles. Features a Node.js TypeScript backend with REST API and a Progressive Web App (PWA) frontend with offline support.
 
