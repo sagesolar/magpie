@@ -1,7 +1,7 @@
 {
   "name": "magpie-frontend",
   "version": "1.0.0",
-  "description": "Magpie Book Collection PWA Frontend",
+  "description": "Magpie Bibliotherapy PWA Frontend",
   "type": "module",
   "scripts": {
     "dev": "vite",
