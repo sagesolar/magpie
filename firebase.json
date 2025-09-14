@@ -1,11 +1,11 @@
 {
   "hosting": {
-    "public": "public/dist",
+    "public": "public",
     "ignore": [
       "firebase.json",
       "**/.*",
       "**/node_modules/**",
-      "**/src/**",
+      "**/dist/**",
       "**/vite.config.js",
       "**/package*.json",
       "**/.env*"

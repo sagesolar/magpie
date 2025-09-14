@@ -141,9 +141,7 @@ jobs:
           echo "window.API_BASE_URL = '$BACKEND_URL';" > config.js
 
       - name: 🚀 Deploy Frontend to Firebase
-        working-directory: public
         run: |
-          echo "${{ secrets.FIREBASE_CONFIG }}" > firebase-config.json
           firebase use ${{ secrets.FIREBASE_PROJECT_ID_DEV }} --token "${{ secrets.FIREBASE_TOKEN }}"
           firebase deploy --only hosting --token "${{ secrets.FIREBASE_TOKEN }}"
 
@@ -252,9 +250,7 @@ jobs:
           echo "window.API_BASE_URL = '$BACKEND_URL';" > config.js
 
       - name: 🚀 Deploy Frontend to Firebase
-        working-directory: public
         run: |
-          echo "${{ secrets.FIREBASE_CONFIG }}" > firebase-config.json
           firebase use ${{ secrets.FIREBASE_PROJECT_ID_PROD }} --token "${{ secrets.FIREBASE_TOKEN }}"
           firebase deploy --only hosting --token "${{ secrets.FIREBASE_TOKEN }}"
 
