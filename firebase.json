@@ -1,11 +1,11 @@
 {
   "hosting": {
-    "public": "public/dist",
+    "public": "public",
     "ignore": [
       "firebase.json",
       "**/.*",
       "**/node_modules/**",
-      "**/src/**",
+      "**/dist/**",
       "**/vite.config.js",
       "**/package*.json",
       "**/.env*"
@@ -14,44 +14,6 @@
       {
         "source": "**",
         "destination": "/index.html"
-      }
-    ],
-    "headers": [
-      {
-        "source": "/sw.js",
-        "headers": [
-          {
-            "key": "Cache-Control",
-            "value": "no-cache"
-          }
-        ]
-      },
-      {
-        "source": "/service-worker.js",
-        "headers": [
-          {
-            "key": "Cache-Control",
-            "value": "no-cache"
-          }
-        ]
-      },
-      {
-        "source": "**/*.@(js|css)",
-        "headers": [
-          {
-            "key": "Cache-Control",
-            "value": "max-age=31536000"
-          }
-        ]
-      },
-      {
-        "source": "/manifest.json",
-        "headers": [
-          {
-            "key": "Cache-Control",
-            "value": "max-age=86400"
-          }
-        ]
       }
     ]
   }

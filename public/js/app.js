@@ -29,6 +29,7 @@ class MagpieApp {
       this.updateConnectionStatus();
       this.renderBooks();
       this.populateGenreFilter();
+      this.updateVersionInfo();
 
       // Pre-cache cover images for offline use
       this.cacheCoverImages();
@@ -79,8 +80,18 @@ class MagpieApp {
       // Try to sync with server if online
       if (navigator.onLine) {
         try {
+          // First sync any offline changes
           await apiService.syncOfflineChanges();
-          // Reload after sync
+          
+          // Then fetch latest books from server
+          const response = await apiService.getAllBooks();
+          if (response && response.data) {
+            // Save fetched books to local database using batch method
+            await bookDB.saveBooksFromServer(response.data);
+            console.log(`Fetched ${response.data.length} books from server`);
+          }
+          
+          // Reload from local database after server sync
           this.books = await bookDB.getAllBooks();
           this.filteredBooks = [...this.books];
         } catch (error) {
@@ -128,6 +139,27 @@ class MagpieApp {
       statusText.textContent = 'Offline';
       syncButton.style.display = 'none';
     }
+  }
+
+  updateVersionInfo() {
+    // Use setTimeout to ensure DOM is ready
+    setTimeout(() => {
+      const versionInfo = document.getElementById('versionInfo');
+      
+      if (versionInfo && window.APP_VERSION) {
+        const buildInfo = window.BUILD_NUMBER ? `b${window.BUILD_NUMBER}` : '';
+        const envInfo = window.ENVIRONMENT === 'development' ? ' (dev)' : '';
+        const versionText = `${window.APP_VERSION}${buildInfo}${envInfo}`;
+        versionInfo.textContent = versionText;
+        
+        // Add the dev class if in development
+        if (window.ENVIRONMENT === 'development') {
+          versionInfo.classList.add('dev');
+        } else {
+          versionInfo.classList.remove('dev');
+        }
+      }
+    }, 100);
   }
 
   // Tab Management

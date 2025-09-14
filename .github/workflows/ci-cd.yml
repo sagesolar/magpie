@@ -1,0 +1,293 @@
+name: 🚀 CI/CD Pipeline
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'development'
+        type: choice
+        options:
+          - development
+          - production
+      reason:
+        description: 'Reason for manual deployment'
+        required: false
+        default: 'Manual deployment'
+      confirm:
+        description: 'For production: Type "DEPLOY" to confirm'
+        required: false
+
+jobs:
+  test-and-build:
+    name: 🧪 Test & Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📋 Show build context
+        run: |
+          echo "🔨 Building and testing code"
+          echo "📅 Event: ${{ github.event_name }}"
+          echo "🌿 Branch: ${{ github.ref_name }}"
+
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🔍 Run linting
+        run: npm run lint
+
+      - name: 🧪 Run tests
+        run: npm test
+
+      - name: 🔨 Build application
+        run: npm run build
+
+  deploy-dev:
+    name: 🖥️ Deploy to Development
+    runs-on: ubuntu-latest
+    needs: [test-and-build]
+    if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'development')
+    environment: development
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: 🚀 Show deployment context
+        run: |
+          echo "🚀 Deploying to Development Environment"
+          echo "📅 Event: ${{ github.event_name }}"
+          echo "🌿 Branch: ${{ github.ref_name }}"
+
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🔨 Build application
+        run: npm run build
+
+      - name: 🔐 Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY_DEV }}
+
+      - name: ☁️ Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: 🐳 Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ secrets.CLOUD_RUN_REGION }}-docker.pkg.dev
+
+      - name: 🔨 Build and push Docker image
+        run: |
+          IMAGE_URI="${{ secrets.CLOUD_RUN_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID_DEV }}/magpie-repo/backend:${{ github.sha }}"
+          docker build -t $IMAGE_URI .
+          docker push $IMAGE_URI
+          echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_ENV
+
+      - name: 🚀 Deploy Backend to Cloud Run
+        id: deploy-backend
+        run: |
+          gcloud run deploy ${{ secrets.CLOUD_RUN_SERVICE_DEV }} \
+            --image ${{ env.IMAGE_URI }} \
+            --platform managed \
+            --region ${{ secrets.CLOUD_RUN_REGION }} \
+            --allow-unauthenticated \
+            --set-env-vars "NODE_ENV=production,GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID_DEV }},FIRESTORE_DATABASE_ID=${{ secrets.FIRESTORE_DATABASE_ID_DEV }}" \
+            --memory 1Gi \
+            --cpu 1 \
+            --min-instances 0 \
+            --max-instances 10
+
+          URL=$(gcloud run services describe ${{ secrets.CLOUD_RUN_SERVICE_DEV }} \
+            --platform managed \
+            --region ${{ secrets.CLOUD_RUN_REGION }} \
+            --format 'value(status.url)')
+
+          echo "SERVICE_URL=$URL" >> $GITHUB_OUTPUT
+          echo "✅ Backend deployed to: $URL"
+
+      - name: 🔥 Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: 🔗 Configure API endpoint and version info
+        working-directory: public
+        run: |
+          BACKEND_URL="${{ steps.deploy-backend.outputs.SERVICE_URL }}"
+          VERSION_DATE=$(date +%Y.%m.%d)
+          BUILD_NUMBER="${{ github.run_number }}"
+          
+          cat > config.js << EOF
+          // Generated during deployment - do not edit manually
+          window.API_BASE_URL = '$BACKEND_URL';
+          window.APP_VERSION = '$VERSION_DATE';
+          window.BUILD_NUMBER = '$BUILD_NUMBER';
+          window.ENVIRONMENT = 'development';
+          window.BUILD_DATE = '$(date -Iseconds)';
+          EOF
+          
+          # Update manifest.json for development environment
+          sed -i 's/"name": "Magpie"/"name": "Magpie (DEV)"/g' manifest.json
+          sed -i 's/"short_name": "Magpie"/"short_name": "Magpie DEV"/g' manifest.json
+          sed -i 's/"theme_color": "#667eea"/"theme_color": "#f97316"/g' manifest.json
+          sed -i 's/"description": "Your book collection manager with offline support"/"description": "Your book collection manager with offline support - Development Version"/g' manifest.json
+
+      - name: 🚀 Deploy Frontend to Firebase
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: service-account-key-dev.json
+        run: |
+          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_DEV }}' > service-account-key-dev.json
+          firebase use ${{ secrets.FIREBASE_PROJECT_ID_DEV }}
+          firebase deploy --only hosting --project "${{ secrets.FIREBASE_PROJECT_ID_DEV }}"
+
+      - name: 🎉 Development Deployment Complete
+        run: |
+          echo "✅ Development Deployment Complete!"
+          echo "🖥️ Backend: ${{ steps.deploy-backend.outputs.SERVICE_URL }}"
+          echo "🌐 Frontend: https://${{ secrets.FIREBASE_PROJECT_ID_DEV }}.web.app"
+
+  deploy-prod:
+    name: 🏭 Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [test-and-build]
+    if: |
+      github.event_name == 'push' && github.ref == 'refs/heads/main' ||
+      github.event_name == 'release' ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: 🔐 Validate production deployment
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "DEPLOY" ]; then
+            echo "❌ Production deployment not confirmed. Please type 'DEPLOY' in the confirm field."
+            exit 1
+          fi
+          echo "✅ Production deployment confirmed"
+
+      - name: 🚀 Show deployment context
+        run: |
+          echo "🚀 Deploying to Production Environment"
+          echo "📅 Event: ${{ github.event_name }}"
+          echo "🌿 Branch: ${{ github.ref_name }}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "👤 Manual deployment: ${{ github.event.inputs.reason }}"
+          elif [ "${{ github.event_name }}" = "release" ]; then
+            echo "🏷️ Release: ${{ github.event.release.tag_name }}"
+          fi
+
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🔨 Build application
+        run: npm run build
+
+      - name: 🔐 Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY_PROD }}
+
+      - name: ☁️ Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: 🐳 Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ secrets.CLOUD_RUN_REGION }}-docker.pkg.dev
+
+      - name: 🔨 Build and push Docker image
+        run: |
+          IMAGE_URI="${{ secrets.CLOUD_RUN_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID_PROD }}/magpie-repo/backend:${{ github.sha }}"
+          docker build -t $IMAGE_URI .
+          docker push $IMAGE_URI
+          echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_ENV
+
+      - name: 🚀 Deploy Backend to Cloud Run
+        id: deploy-backend
+        run: |
+          gcloud run deploy ${{ secrets.CLOUD_RUN_SERVICE_PROD }} \
+            --image ${{ env.IMAGE_URI }} \
+            --platform managed \
+            --region ${{ secrets.CLOUD_RUN_REGION }} \
+            --allow-unauthenticated \
+            --set-env-vars "NODE_ENV=production,GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID_PROD }},FIRESTORE_DATABASE_ID=${{ secrets.FIRESTORE_DATABASE_ID_PROD }}" \
+            --memory 1Gi \
+            --cpu 1 \
+            --min-instances 0 \
+            --max-instances 10
+
+          URL=$(gcloud run services describe ${{ secrets.CLOUD_RUN_SERVICE_PROD }} \
+            --platform managed \
+            --region ${{ secrets.CLOUD_RUN_REGION }} \
+            --format 'value(status.url)')
+
+          echo "SERVICE_URL=$URL" >> $GITHUB_OUTPUT
+          echo "✅ Backend deployed to: $URL"
+
+      - name: 🔥 Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: 🔗 Configure API endpoint and version info
+        working-directory: public
+        run: |
+          BACKEND_URL="${{ steps.deploy-backend.outputs.SERVICE_URL }}"
+          VERSION_DATE=$(date +%Y.%m.%d)
+          BUILD_NUMBER="${{ github.run_number }}"
+          
+          cat > config.js << EOF
+          // Generated during deployment - do not edit manually
+          window.API_BASE_URL = '$BACKEND_URL';
+          window.APP_VERSION = '$VERSION_DATE';
+          window.BUILD_NUMBER = '$BUILD_NUMBER';
+          window.ENVIRONMENT = 'production';
+          window.BUILD_DATE = '$(date -Iseconds)';
+          EOF
+
+      - name: 🚀 Deploy Frontend to Firebase
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: service-account-key-prod.json
+        run: |
+          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_PROD }}' > service-account-key-prod.json
+          firebase use ${{ secrets.FIREBASE_PROJECT_ID_PROD }}
+          firebase deploy --only hosting --project "${{ secrets.FIREBASE_PROJECT_ID_PROD }}"
+
+      - name: 🎉 Production Deployment Complete
+        run: |
+          echo "✅ Production Deployment Complete!"
+          echo "🖥️ Backend: ${{ steps.deploy-backend.outputs.SERVICE_URL }}"
+          echo "🌐 Frontend: https://${{ secrets.FIREBASE_PROJECT_ID_PROD }}.web.app"

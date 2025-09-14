@@ -52,6 +52,10 @@ class MagpieServer {
         origin: process.env.ALLOWED_ORIGINS?.split(',') || [
           'http://localhost:3000',
           'http://localhost:8080',
+          'http://127.0.0.1:3000',
+          'http://127.0.0.1:8080',
+          'https://magpie-pwa-dev.web.app',
+          'https://magpie-pwa-prod.web.app',
         ],
         credentials: true,
       })
@@ -161,4 +165,4 @@ process.on('SIGTERM', () => server.shutdown());
 process.on('SIGINT', () => server.shutdown());
 
 // Start the server
-server.start().catch((error) => logger.error('Failed to start server', error));
+server.start().catch(error => logger.error('Failed to start server', error));

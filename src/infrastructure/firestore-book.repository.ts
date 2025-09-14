@@ -7,7 +7,6 @@ import {
   FieldValue,
   Query,
 } from '@google-cloud/firestore';
-import * as admin from 'firebase-admin';
 import {
   Book,
   CreateBookDto,
@@ -23,34 +22,21 @@ export class FirestoreBookRepository implements BookRepository {
   private db: Firestore;
   private collection: CollectionReference<DocumentData>;
 
-  constructor(projectId?: string, serviceAccountPath?: string, _databaseId?: string) {
-    // Initialize Firebase Admin if not already initialized
-    if (!admin.apps.length) {
-      const config: admin.AppOptions = {
-        projectId: projectId || process.env.GOOGLE_CLOUD_PROJECT_ID,
-      };
+  constructor(projectId?: string, serviceAccountPath?: string, databaseId?: string) {
+    const dbId = databaseId || process.env.FIRESTORE_DATABASE_ID || '(default)';
+    const project = projectId || process.env.GOOGLE_CLOUD_PROJECT_ID;
 
-      // Use service account if provided, otherwise use default credentials
-      if (serviceAccountPath || process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-        config.credential = admin.credential.cert(
-          serviceAccountPath || process.env.GOOGLE_APPLICATION_CREDENTIALS!
-        );
-      } else {
-        // Use Application Default Credentials
-        config.credential = admin.credential.applicationDefault();
-      }
+    console.log(`Connecting to Firestore - Project: ${project}, Database: ${dbId}`);
 
-      admin.initializeApp(config);
-    }
+    // Use @google-cloud/firestore directly for named database support
+    this.db = new Firestore({
+      projectId: project,
+      databaseId: dbId,
+    });
 
-    // Use specific database if provided
-    this.db = admin.firestore();
-
-    // Note: For named databases, you would typically configure this at the app level
-    // For now, we'll use environment variables to determine the project/database
     this.collection = this.db.collection('books');
 
-    // Configure Firestore settings
+    // Configure additional Firestore settings
     this.db.settings({
       ignoreUndefinedProperties: true,
     });

@@ -108,6 +108,26 @@ class BookDB {
     });
   }
 
+  async saveBooksFromServer(books) {
+    if (!books || books.length === 0) return;
+
+    const transaction = this.getTransaction(['books'], 'readwrite');
+    const booksStore = transaction.objectStore('books');
+
+    return new Promise((resolve, reject) => {
+      books.forEach(book => {
+        // Don't set sync flags for books from server
+        const cleanBook = { ...book };
+        delete cleanBook.needsSync;
+        delete cleanBook.syncAction;
+        booksStore.put(cleanBook);
+      });
+
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+    });
+  }
+
   async deleteBook(isbn) {
     const transaction = this.getTransaction(['books', 'changes'], 'readwrite');
     const booksStore = transaction.objectStore('books');
@@ -161,11 +181,15 @@ class BookDB {
   async getUnsyncedChanges() {
     const transaction = this.getTransaction(['changes']);
     const store = transaction.objectStore('changes');
-    const index = store.index('synced');
 
     return new Promise((resolve, reject) => {
-      const request = index.getAll(false);
-      request.onsuccess = () => resolve(request.result);
+      const request = store.getAll();
+      request.onsuccess = () => {
+        // Filter unsynced changes in memory since IndexedDB boolean indexing is problematic
+        const allChanges = request.result;
+        const unsyncedChanges = allChanges.filter(change => change.synced === false);
+        resolve(unsyncedChanges);
+      };
       request.onerror = () => reject(request.error);
     });
   }

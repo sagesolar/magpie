@@ -18,7 +18,5 @@ tests/
 *.test.js
 .eslintrc*
 jest.config*
-tsconfig.json
 docs/
-magpie.db
 *.log

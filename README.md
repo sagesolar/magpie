@@ -1,4 +1,4 @@
-# 🐦 Magpie Book Collection System
+# 🐦 Magpie Bibliotherapy 📚
 
 A modern, full-stack book collection management system built with clean architecture principles. Features a Node.js TypeScript backend with REST API and a Progressive Web App (PWA) frontend with offline support.
 
@@ -159,17 +159,27 @@ The system uses **Google Cloud Firestore** as its NoSQL document database, provi
 ```
 magpie/
 ├── .github/            # GitHub Actions workflows
-│   └── workflows/      # CI/CD pipeline definitions
+│   ├── workflows/      # CI/CD pipeline definitions
 ├── docs/               # Documentation
 │   ├── CI_CD_SETUP.md  # CI/CD setup guide
 │   ├── DEPLOYMENT.md   # Deployment instructions
 │   ├── FIRESTORE_SETUP.md # Database setup guide
 │   └── SECURITY.md     # Security guidelines
+├── scripts/            # Setup and utility scripts
+│   ├── seed-database.ps1       # PowerShell database seeding script
+│   ├── view-database.ps1       # PowerShell database viewing script
+│   └── database/       # Database management scripts
+│       ├── check-database.js   # Database validation script
+│       ├── seed-data.json      # Sample data for seeding
+│       ├── seed-firestore.js   # Firestore seeding script
+│       ├── setup-metadata.js  # Database metadata initialization
+│       └── view-database.js    # Database viewing utility
 ├── src/                # Source code
 │   ├── api/            # REST API controllers and routes
 │   ├── application/    # Use cases and business logic
 │   ├── domain/         # Business entities and types
 │   ├── infrastructure/ # External services and data access
+│   ├── utils/          # Utility functions and helpers
 │   └── server.ts       # Application entry point
 ├── tests/              # Unit tests
 │   ├── setup.ts        # Test configuration
@@ -180,6 +190,8 @@ magpie/
 │   ├── index.html      # Main PWA interface
 │   ├── manifest.json   # PWA manifest
 │   ├── sw.js          # Service worker
+│   ├── vite.config.js # Vite build configuration
+│   ├── package.json   # Frontend dependencies
 │   ├── styles/        # CSS files
 │   │   ├── main.css   # Main layout and theme
 │   │   ├── components.css # Reusable UI components
@@ -187,11 +199,18 @@ magpie/
 │   │   └── forms.css  # Form elements styling
 │   ├── images/        # Application images and icons
 │   │   ├── favicons/  # PWA icons and favicon assets
-│   │   ├── magpie-main.png # Main logo (horizontal)
+│   │   ├── magpie-main.png # Main logo
 │   │   └── magpie-square-icon.png # Square icon for toasts
 │   └── js/            # Frontend JavaScript
+│       ├── api.js     # API communication layer
+│       ├── app.js     # Main application logic
+│       ├── camera-ocr.js # Camera and OCR functionality
+│       └── db.js      # IndexedDB offline storage
 ├── Dockerfile          # Docker containerization
 ├── firebase.json       # Firebase hosting configuration
+├── firestore.rules     # Firestore security rules
+├── .dockerignore      # Docker ignore patterns
+├── .firebaserc        # Firebase project configuration (local dev only)
 ├── .nvmrc             # Node.js version specification
 ├── package.json        # Dependencies and scripts
 ├── tsconfig.json       # TypeScript configuration
