@@ -85,10 +85,8 @@ class MagpieApp {
           // Then fetch latest books from server
           const response = await apiService.getAllBooks();
           if (response && response.data) {
-            // Save fetched books to local database
-            for (const book of response.data) {
-              await bookDB.saveBook(book);
-            }
+            // Save fetched books to local database using batch method
+            await bookDB.saveBooksFromServer(response.data);
             console.log(`Fetched ${response.data.length} books from server`);
           }
           

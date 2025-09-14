@@ -108,6 +108,26 @@ class BookDB {
     });
   }
 
+  async saveBooksFromServer(books) {
+    if (!books || books.length === 0) return;
+
+    const transaction = this.getTransaction(['books'], 'readwrite');
+    const booksStore = transaction.objectStore('books');
+
+    return new Promise((resolve, reject) => {
+      books.forEach(book => {
+        // Don't set sync flags for books from server
+        const cleanBook = { ...book };
+        delete cleanBook.needsSync;
+        delete cleanBook.syncAction;
+        booksStore.put(cleanBook);
+      });
+
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+    });
+  }
+
   async deleteBook(isbn) {
     const transaction = this.getTransaction(['books', 'changes'], 'readwrite');
     const booksStore = transaction.objectStore('books');
