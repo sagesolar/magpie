@@ -134,11 +134,21 @@ jobs:
       - name: 🔥 Install Firebase CLI
         run: npm install -g firebase-tools
 
-      - name: 🔗 Configure API endpoint
+      - name: 🔗 Configure API endpoint and version info
         working-directory: public
         run: |
           BACKEND_URL="${{ steps.deploy-backend.outputs.SERVICE_URL }}"
-          echo "window.API_BASE_URL = '$BACKEND_URL';" > config.js
+          VERSION_DATE=$(date +%Y.%m.%d)
+          BUILD_NUMBER="${{ github.run_number }}"
+          
+          cat > config.js << EOF
+          // Generated during deployment - do not edit manually
+          window.API_BASE_URL = '$BACKEND_URL';
+          window.APP_VERSION = '$VERSION_DATE';
+          window.BUILD_NUMBER = '$BUILD_NUMBER';
+          window.ENVIRONMENT = 'development';
+          window.BUILD_DATE = '$(date -Iseconds)';
+          EOF
 
       - name: 🚀 Deploy Frontend to Firebase
         env:
@@ -246,11 +256,21 @@ jobs:
       - name: 🔥 Install Firebase CLI
         run: npm install -g firebase-tools
 
-      - name: 🔗 Configure API endpoint
+      - name: 🔗 Configure API endpoint and version info
         working-directory: public
         run: |
           BACKEND_URL="${{ steps.deploy-backend.outputs.SERVICE_URL }}"
-          echo "window.API_BASE_URL = '$BACKEND_URL';" > config.js
+          VERSION_DATE=$(date +%Y.%m.%d)
+          BUILD_NUMBER="${{ github.run_number }}"
+          
+          cat > config.js << EOF
+          // Generated during deployment - do not edit manually
+          window.API_BASE_URL = '$BACKEND_URL';
+          window.APP_VERSION = '$VERSION_DATE';
+          window.BUILD_NUMBER = '$BUILD_NUMBER';
+          window.ENVIRONMENT = 'production';
+          window.BUILD_DATE = '$(date -Iseconds)';
+          EOF
 
       - name: 🚀 Deploy Frontend to Firebase
         env:
