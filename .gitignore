@@ -1,3 +1,6 @@
+# Firebase configuration (local development)
+.firebaserc
+
 # Dependencies
 node_modules/
 npm-debug.log*
