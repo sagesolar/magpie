@@ -11,13 +11,7 @@ on:
     inputs:
       environment:
         description: 'Deployment environment'
-        requ      - name: 🚀 Deploy Frontend to Firebase
-        env:
-          GOOGLE_APPLICATION_CREDENTIALS: service-account-key-dev.json
-        run: |
-          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_DEV }}' > service-account-key-dev.json
-          firebase use ${{ secrets.FIREBASE_PROJECT_ID_DEV }}
-          firebase deploy --only hosting --project "${{ secrets.FIREBASE_PROJECT_ID_DEV }}": true
+        required: true
         default: 'development'
         type: choice
         options:
