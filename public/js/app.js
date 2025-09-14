@@ -79,8 +79,20 @@ class MagpieApp {
       // Try to sync with server if online
       if (navigator.onLine) {
         try {
+          // First sync any offline changes
           await apiService.syncOfflineChanges();
-          // Reload after sync
+          
+          // Then fetch latest books from server
+          const response = await apiService.getAllBooks();
+          if (response && response.data) {
+            // Save fetched books to local database
+            for (const book of response.data) {
+              await bookDB.saveBook(book);
+            }
+            console.log(`Fetched ${response.data.length} books from server`);
+          }
+          
+          // Reload from local database after server sync
           this.books = await bookDB.getAllBooks();
           this.filteredBooks = [...this.books];
         } catch (error) {
