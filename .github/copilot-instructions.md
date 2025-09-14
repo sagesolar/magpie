@@ -30,6 +30,10 @@
 
 - [x] Setup GitHub Secrets - Repository and environment secrets configured for secure deployment automation
 
+- [x] Setup Firebase Hosting - Created Firebase projects with Hosting enabled and service account authentication configured
+
+- [x] Configure PWA API Integration - Updated PWA to dynamically load backend API URLs from generated config.js files during deployment
+
 ## Project Summary
 
 The Magpie Book Collection System has been successfully created with full CI/CD pipeline:
@@ -89,7 +93,7 @@ The Magpie Book Collection System has been successfully created with full CI/CD 
 - **Single Page Application**: Rewrites all routes to `/index.html` for client-side routing
 - **Firebase CLI Integration**: Automated deployment via Firebase CLI in CI/CD pipeline
 - **Environment-Specific Projects**: Separate Firebase projects for development and production
-- **Authentication Token**: CI/CD uses Firebase token for automated deployments
+- **Service Account Authentication**: CI/CD uses Firebase service accounts for automated deployments
 - **Static Asset Serving**: Direct serving of PWA files from `public/` directory
 
 ### PWA Configuration & Deployment
@@ -139,7 +143,7 @@ The Magpie Book Collection System has been successfully created with full CI/CD 
   - **Service Accounts**: Backend, GitHub Actions, and Firebase Admin service accounts with proper IAM roles
   - **Cloud Run Service**: Backend API deployment target
   - **Docker Authentication**: Configured for secure image pushing from CI/CD
-  - **Firebase CLI Token**: Configured for automated PWA deployments
+  - **Firebase Service Accounts**: Configured for automated PWA deployments
 
 - **Production Project**: Configured with dedicated GCP project
   - **APIs Enabled**: Artifact Registry, Cloud Run, Cloud Build, Firebase, Firebase Hosting, Firestore, IAM, Cloud Resource Manager
@@ -149,7 +153,7 @@ The Magpie Book Collection System has been successfully created with full CI/CD 
   - **Service Accounts**: Backend, GitHub Actions, and Firebase Admin service accounts with proper IAM roles
   - **Cloud Run Service**: Backend API deployment target
   - **Docker Authentication**: Configured for secure image pushing from CI/CD
-  - **Firebase CLI Token**: Configured for automated PWA deployments
+  - **Firebase Service Accounts**: Configured for automated PWA deployments
 
 ### Infrastructure Requirements
 

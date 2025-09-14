@@ -190,7 +190,6 @@ magpie/
 │   ├── index.html      # Main PWA interface
 │   ├── manifest.json   # PWA manifest
 │   ├── sw.js          # Service worker
-│   ├── firebase.json  # Frontend Firebase configuration
 │   ├── vite.config.js # Vite build configuration
 │   ├── package.json   # Frontend dependencies
 │   ├── styles/        # CSS files
@@ -200,7 +199,7 @@ magpie/
 │   │   └── forms.css  # Form elements styling
 │   ├── images/        # Application images and icons
 │   │   ├── favicons/  # PWA icons and favicon assets
-│   │   ├── magpie-main.png # Main logo (horizontal)
+│   │   ├── magpie-main.png # Main logo
 │   │   └── magpie-square-icon.png # Square icon for toasts
 │   └── js/            # Frontend JavaScript
 │       ├── api.js     # API communication layer
@@ -211,7 +210,7 @@ magpie/
 ├── firebase.json       # Firebase hosting configuration
 ├── firestore.rules     # Firestore security rules
 ├── .dockerignore      # Docker ignore patterns
-├── .firebaserc        # Firebase project configuration
+├── .firebaserc        # Firebase project configuration (local dev only)
 ├── .nvmrc             # Node.js version specification
 ├── package.json        # Dependencies and scripts
 ├── tsconfig.json       # TypeScript configuration
