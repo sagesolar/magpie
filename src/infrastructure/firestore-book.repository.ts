@@ -23,7 +23,7 @@ export class FirestoreBookRepository implements BookRepository {
   private db: Firestore;
   private collection: CollectionReference<DocumentData>;
 
-  constructor(projectId?: string, serviceAccountPath?: string, _databaseId?: string) {
+  constructor(projectId?: string, serviceAccountPath?: string, databaseId?: string) {
     // Initialize Firebase Admin if not already initialized
     if (!admin.apps.length) {
       const config: admin.AppOptions = {
@@ -44,13 +44,17 @@ export class FirestoreBookRepository implements BookRepository {
     }
 
     // Use specific database if provided
-    this.db = admin.firestore();
+    const dbId = databaseId || process.env.FIRESTORE_DATABASE_ID || '(default)';
+    if (dbId === '(default)') {
+      this.db = admin.firestore();
+    } else {
+      this.db = admin.firestore();
+      this.db.settings({ databaseId: dbId });
+    }
 
-    // Note: For named databases, you would typically configure this at the app level
-    // For now, we'll use environment variables to determine the project/database
     this.collection = this.db.collection('books');
 
-    // Configure Firestore settings
+    // Configure additional Firestore settings
     this.db.settings({
       ignoreUndefinedProperties: true,
     });
