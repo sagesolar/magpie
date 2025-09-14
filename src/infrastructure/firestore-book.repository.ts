@@ -24,31 +24,16 @@ export class FirestoreBookRepository implements BookRepository {
   private collection: CollectionReference<DocumentData>;
 
   constructor(projectId?: string, serviceAccountPath?: string, databaseId?: string) {
-    // Initialize Firebase Admin if not already initialized
-    if (!admin.apps.length) {
-      const config: admin.AppOptions = {
-        projectId: projectId || process.env.GOOGLE_CLOUD_PROJECT_ID,
-      };
-
-      // Use service account if provided, otherwise use default credentials
-      if (serviceAccountPath || process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-        config.credential = admin.credential.cert(
-          serviceAccountPath || process.env.GOOGLE_APPLICATION_CREDENTIALS!
-        );
-      } else {
-        // Use Application Default Credentials
-        config.credential = admin.credential.applicationDefault();
-      }
-
-      admin.initializeApp(config);
-    }
-
-    // Get Firestore instance - for now, use default until we can properly configure named databases
-    this.db = admin.firestore();
-    
-    // Log the database configuration for debugging
     const dbId = databaseId || process.env.FIRESTORE_DATABASE_ID || '(default)';
-    console.log(`Firestore configuration - Database ID: ${dbId}, Project: ${projectId || process.env.GOOGLE_CLOUD_PROJECT_ID}`);
+    const project = projectId || process.env.GOOGLE_CLOUD_PROJECT_ID;
+    
+    console.log(`Connecting to Firestore - Project: ${project}, Database: ${dbId}`);
+
+    // Use @google-cloud/firestore directly for named database support
+    this.db = new Firestore({
+      projectId: project,
+      databaseId: dbId
+    });
 
     this.collection = this.db.collection('books');
 
