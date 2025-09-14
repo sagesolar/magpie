@@ -1,22 +1,9 @@
 {
   "projects": {
-    "development": "your-dev-project-id",
-    "production": "your-prod-project-id"
+    "development": "your-dev-firebase-project-id",
+    "production": "your-prod-firebase-project-id",
+    "default": "your-dev-firebase-project-id"
   },
-  "targets": {
-    "your-dev-project-id": {
-      "hosting": {
-        "magpie-pwa-dev": [
-          "your-dev-project-id"
-        ]
-      }
-    },
-    "your-prod-project-id": {
-      "hosting": {
-        "magpie-pwa-prod": [
-          "your-prod-project-id"
-        ]
-      }
-    }
-  }
+  "targets": {},
+  "etags": {}
 }

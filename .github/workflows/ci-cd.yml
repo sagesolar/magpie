@@ -11,7 +11,13 @@ on:
     inputs:
       environment:
         description: 'Deployment environment'
-        required: true
+        requ      - name: 🚀 Deploy Frontend to Firebase
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: service-account-key-dev.json
+        run: |
+          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_DEV }}' > service-account-key-dev.json
+          firebase use ${{ secrets.FIREBASE_PROJECT_ID_DEV }}
+          firebase deploy --only hosting --project "${{ secrets.FIREBASE_PROJECT_ID_DEV }}": true
         default: 'development'
         type: choice
         options:
@@ -143,7 +149,8 @@ jobs:
       - name: 🚀 Deploy Frontend to Firebase
         run: |
           firebase use ${{ secrets.FIREBASE_PROJECT_ID_DEV }} --token "${{ secrets.FIREBASE_TOKEN }}"
-          firebase deploy --only hosting --token "${{ secrets.FIREBASE_TOKEN }}"
+          # Try to deploy, if it fails due to missing site, the error will be clear
+          firebase deploy --only hosting --token "${{ secrets.FIREBASE_TOKEN }}" --project "${{ secrets.FIREBASE_PROJECT_ID_DEV }}"
 
       - name: 🎉 Development Deployment Complete
         run: |
@@ -250,9 +257,12 @@ jobs:
           echo "window.API_BASE_URL = '$BACKEND_URL';" > config.js
 
       - name: 🚀 Deploy Frontend to Firebase
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: service-account-key-prod.json
         run: |
-          firebase use ${{ secrets.FIREBASE_PROJECT_ID_PROD }} --token "${{ secrets.FIREBASE_TOKEN }}"
-          firebase deploy --only hosting --token "${{ secrets.FIREBASE_TOKEN }}"
+          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_PROD }}' > service-account-key-prod.json
+          firebase use ${{ secrets.FIREBASE_PROJECT_ID_PROD }}
+          firebase deploy --only hosting --project "${{ secrets.FIREBASE_PROJECT_ID_PROD }}" --project "${{ secrets.FIREBASE_PROJECT_ID_PROD }}"
 
       - name: 🎉 Production Deployment Complete
         run: |

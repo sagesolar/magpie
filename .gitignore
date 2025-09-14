@@ -1,6 +1,12 @@
 # Firebase configuration (local development)
 .firebaserc
 
+# Firebase deployment cache
+.firebase/
+
+# API configuration (generated during deployment)
+public/config.js
+
 # Dependencies
 node_modules/
 npm-debug.log*
