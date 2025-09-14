@@ -5,6 +5,10 @@ yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 
+# Frontend build artifacts and dependencies
+public/dist/
+public/node_modules/
+
 # Runtime data
 pids
 *.pid
