@@ -35,7 +35,31 @@
           <img src="images/magpie-main.png" alt="Magpie Logo" class="logo-image" />
           <h1>Magpie</h1>
         </div>
-        <p>Your Bibliotherapy</p>
+        <div class="header-right">
+          <p>Your Bibliotherapy</p>
+          <!-- Authentication UI -->
+          <div class="auth-section" id="authSection">
+            <!-- User Profile (shown when logged in) -->
+            <div class="user-profile hidden" id="userProfile">
+              <img class="user-avatar" id="userAvatar" src="" alt="User Avatar" />
+              <div class="user-info">
+                <span class="user-name" id="userName"></span>
+                <span class="user-email" id="userEmail"></span>
+              </div>
+              <div class="user-actions">
+                <button class="btn btn-secondary btn-small" onclick="app.showUserSettings()">
+                  ⚙️ Settings
+                </button>
+                <button class="btn btn-secondary btn-small" onclick="app.logout()">Logout</button>
+              </div>
+            </div>
+            <!-- Login Button (shown when logged out) -->
+            <div class="login-section" id="loginSection">
+              <button class="btn btn-primary" onclick="app.showLogin()">🔐 Sign In</button>
+              <p class="offline-note">Continue offline or sign in to sync</p>
+            </div>
+          </div>
+        </div>
       </header>
 
       <!-- Status Bar -->
@@ -53,6 +77,7 @@
       <div class="tabs">
         <button class="tab active" onclick="app.switchTab('collection')">My Collection</button>
         <button class="tab" onclick="app.switchTab('favourites')">Favourites</button>
+        <button class="tab" onclick="app.switchTab('shared')" id="sharedTab">Shared Books</button>
         <button class="tab" onclick="app.switchTab('wishlist')">Wishlist</button>
         <button class="tab" onclick="app.switchTab('loans')">Loans</button>
       </div>
@@ -89,6 +114,34 @@
             <div class="spinner"></div>
             <p>Loading your collection...</p>
           </div>
+        </div>
+      </div>
+
+      <!-- Shared Books Tab -->
+      <div id="shared-tab" class="tab-content">
+        <div class="auth-required-message" id="sharedAuthMessage">
+          <div class="auth-prompt">
+            <h3>📚 Shared Collections</h3>
+            <p>Sign in to view books shared with you and share your collection with others.</p>
+            <button class="btn btn-primary" onclick="app.showLogin()">
+              Sign In to View Shared Books
+            </button>
+          </div>
+        </div>
+        <div class="shared-content hidden" id="sharedContent">
+          <div class="controls">
+            <div class="sharing-options">
+              <button class="btn btn-secondary" onclick="app.showShareModal()">
+                📤 Share Books
+              </button>
+              <select class="filter-select" id="sharedFilter" onchange="app.applySharedFilters()">
+                <option value="all">All Shared Books</option>
+                <option value="shared-with-me">Shared with Me</option>
+                <option value="shared-by-me">Shared by Me</option>
+              </select>
+            </div>
+          </div>
+          <div id="sharedBooksContainer"></div>
         </div>
       </div>
 
@@ -257,8 +310,146 @@
     <!-- Toast Notifications -->
     <div id="toast" class="toast"></div>
 
+    <!-- User Settings Modal -->
+    <div id="userSettingsModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 class="modal-title">User Settings</h2>
+          <button class="close-btn" onclick="app.closeUserSettings()">&times;</button>
+        </div>
+        <form id="userSettingsForm" onsubmit="app.saveUserSettings(event)">
+          <div class="settings-section">
+            <h3>Display Preferences</h3>
+            <div class="form-group">
+              <label class="form-label">Books per page</label>
+              <select class="form-input" id="booksPerPageSetting">
+                <option value="10">10 books</option>
+                <option value="20">20 books</option>
+                <option value="50">50 books</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Default view</label>
+              <select class="form-input" id="defaultViewSetting">
+                <option value="grid">Grid view</option>
+                <option value="list">List view</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Sorting style</label>
+              <select class="form-input" id="sortingStyleSetting">
+                <option value="alphabetical">Alphabetical</option>
+                <option value="genre">By genre</option>
+                <option value="author">By author</option>
+                <option value="date">By date added</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Theme</label>
+              <select class="form-input" id="themeSetting">
+                <option value="auto">Auto (system)</option>
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+              </select>
+            </div>
+          </div>
+          <div class="settings-section">
+            <h3>Sharing & Privacy</h3>
+            <div class="form-group">
+              <label class="form-label">Sharing visibility</label>
+              <select class="form-input" id="sharingVisibilitySetting">
+                <option value="private">Private (no sharing)</option>
+                <option value="friends">Friends only</option>
+                <option value="public">Public</option>
+              </select>
+            </div>
+          </div>
+          <div class="settings-section">
+            <h3>Notifications</h3>
+            <div class="form-group">
+              <label class="checkbox-label">
+                <input type="checkbox" id="newBooksNotification" />
+                <span>New books added</span>
+              </label>
+            </div>
+            <div class="form-group">
+              <label class="checkbox-label">
+                <input type="checkbox" id="loanRemindersNotification" />
+                <span>Loan reminders</span>
+              </label>
+            </div>
+            <div class="form-group">
+              <label class="checkbox-label">
+                <input type="checkbox" id="sharedCollectionsNotification" />
+                <span>Shared collections updates</span>
+              </label>
+            </div>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" onclick="app.closeUserSettings()">
+              Cancel
+            </button>
+            <button type="submit" class="btn btn-primary">Save Settings</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Share Books Modal -->
+    <div id="shareModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 class="modal-title">Share Books</h2>
+          <button class="close-btn" onclick="app.closeShareModal()">&times;</button>
+        </div>
+        <form id="shareForm" onsubmit="app.shareBooks(event)">
+          <div class="form-group">
+            <label class="form-label">Share with (email addresses)</label>
+            <input
+              type="text"
+              class="form-input"
+              id="shareEmailsInput"
+              placeholder="email1@example.com, email2@example.com"
+              required
+            />
+            <small>Separate multiple emails with commas</small>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Select books to share</label>
+            <div class="book-selection" id="bookSelectionContainer">
+              <!-- Books will be populated here -->
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Permissions</label>
+            <div class="permission-options">
+              <label class="checkbox-label">
+                <input type="checkbox" id="canViewPermission" checked disabled />
+                <span>Can view books</span>
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" id="canEditPermission" />
+                <span>Can edit book details</span>
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" id="canSharePermission" />
+                <span>Can share with others</span>
+              </label>
+            </div>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" onclick="app.closeShareModal()">
+              Cancel
+            </button>
+            <button type="submit" class="btn btn-primary">Share Books</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
     <!-- Scripts -->
     <script src="config.js"></script>
+    <script src="js/auth.js"></script>
     <script type="module" src="js/db.js"></script>
     <script type="module" src="js/api.js"></script>
     <script type="module" src="js/camera-ocr.js"></script>

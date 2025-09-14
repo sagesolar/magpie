@@ -7,25 +7,38 @@ import {
   BookSortOptions,
   PaginationOptions,
   PaginatedResult,
+  ShareBookDto,
+  DEFAULT_OWNER_PERMISSIONS,
 } from '../src/domain/book.types';
 import { BookRepository, ExternalBookService } from '../src/infrastructure/interfaces';
 
 export class MockBookRepository implements BookRepository {
   private books: Book[] = [];
 
-  async create(bookData: CreateBookDto): Promise<Book> {
+  async create(bookData: CreateBookDto, userId: string): Promise<Book> {
     const book: Book = {
       ...bookData,
       isFavourite: bookData.isFavourite ?? false,
       createdAt: new Date(),
       updatedAt: new Date(),
+      ownerId: userId,
+      sharedWith: [],
+      permissions: { ...DEFAULT_OWNER_PERMISSIONS },
     };
     this.books.push(book);
     return book;
   }
 
-  async findById(isbn: string): Promise<Book | null> {
-    return this.books.find(book => book.isbn === isbn) || null;
+  async findById(isbn: string, userId?: string): Promise<Book | null> {
+    const book = this.books.find(book => book.isbn === isbn) || null;
+    if (!book || !userId) return book;
+
+    // Check if user has access
+    if (book.ownerId === userId || book.sharedWith.includes(userId)) {
+      return book;
+    }
+
+    return null;
   }
 
   async close(): Promise<void> {
@@ -35,9 +48,17 @@ export class MockBookRepository implements BookRepository {
   async findAll(
     criteria?: BookSearchCriteria,
     sort?: BookSortOptions,
-    pagination?: PaginationOptions
+    pagination?: PaginationOptions,
+    userId?: string
   ): Promise<PaginatedResult<Book>> {
     let filteredBooks = [...this.books];
+
+    // Filter by user access
+    if (userId) {
+      filteredBooks = filteredBooks.filter(
+        book => book.ownerId === userId || book.sharedWith.includes(userId)
+      );
+    }
 
     // Apply search criteria
     if (criteria?.query) {
@@ -108,33 +129,129 @@ export class MockBookRepository implements BookRepository {
     };
   }
 
-  async update(isbn: string, updates: UpdateBookDto): Promise<Book | null> {
+  async update(isbn: string, updates: UpdateBookDto, userId: string): Promise<Book | null> {
     const bookIndex = this.books.findIndex(book => book.isbn === isbn);
     if (bookIndex === -1) return null;
 
+    const book = this.books[bookIndex];
+
+    // Check if user has edit rights
+    if (
+      book.ownerId !== userId &&
+      (!book.sharedWith.includes(userId) || !book.permissions.canEdit)
+    ) {
+      return null;
+    }
+
     this.books[bookIndex] = {
-      ...this.books[bookIndex],
+      ...book,
       ...updates,
+      permissions: { ...book.permissions, ...updates.permissions },
       updatedAt: new Date(),
     };
 
     return this.books[bookIndex];
   }
 
-  async delete(isbn: string): Promise<boolean> {
-    const initialLength = this.books.length;
-    this.books = this.books.filter(book => book.isbn !== isbn);
-    return this.books.length < initialLength;
+  async delete(isbn: string, userId: string): Promise<boolean> {
+    const bookIndex = this.books.findIndex(book => book.isbn === isbn);
+    if (bookIndex === -1) return false;
+
+    const book = this.books[bookIndex];
+
+    // Check if user has remove rights
+    if (
+      book.ownerId !== userId &&
+      (!book.sharedWith.includes(userId) || !book.permissions.canRemove)
+    ) {
+      return false;
+    }
+
+    this.books.splice(bookIndex, 1);
+    return true;
   }
 
-  async search(query: string): Promise<Book[]> {
+  async search(query: string, userId?: string): Promise<Book[]> {
     const lowerQuery = query.toLowerCase();
-    return this.books.filter(
+    let books = this.books.filter(
       book =>
         book.title.toLowerCase().includes(lowerQuery) ||
         book.authors.some(author => author.toLowerCase().includes(lowerQuery)) ||
         book.isbn.includes(query)
     );
+
+    // Filter by user access
+    if (userId) {
+      books = books.filter(book => book.ownerId === userId || book.sharedWith.includes(userId));
+    }
+
+    return books;
+  }
+
+  async shareBook(isbn: string, shareData: ShareBookDto, userId: string): Promise<Book | null> {
+    const bookIndex = this.books.findIndex(book => book.isbn === isbn);
+    if (bookIndex === -1) return null;
+
+    const book = this.books[bookIndex];
+
+    // Check if user has share rights
+    if (
+      book.ownerId !== userId &&
+      (!book.sharedWith.includes(userId) || !book.permissions.canShare)
+    ) {
+      return null;
+    }
+
+    // Add users to shared access if not already included
+    shareData.userIds.forEach(userId => {
+      if (!book.sharedWith.includes(userId)) {
+        book.sharedWith.push(userId);
+      }
+    });
+
+    this.books[bookIndex] = {
+      ...book,
+      updatedAt: new Date(),
+    };
+
+    return this.books[bookIndex];
+  }
+
+  async removeUserFromBook(
+    isbn: string,
+    userIdToRemove: string,
+    requestingUserId: string
+  ): Promise<Book | null> {
+    const bookIndex = this.books.findIndex(book => book.isbn === isbn);
+    if (bookIndex === -1) return null;
+
+    const book = this.books[bookIndex];
+
+    // Check if requesting user has share rights
+    if (
+      book.ownerId !== requestingUserId &&
+      (!book.sharedWith.includes(requestingUserId) || !book.permissions.canShare)
+    ) {
+      return null;
+    }
+
+    // Remove user from shared access
+    book.sharedWith = book.sharedWith.filter(id => id !== userIdToRemove);
+
+    this.books[bookIndex] = {
+      ...book,
+      updatedAt: new Date(),
+    };
+
+    return this.books[bookIndex];
+  }
+
+  async getUserBooks(userId: string, includeShared = true): Promise<Book[]> {
+    if (includeShared) {
+      return this.books.filter(book => book.ownerId === userId || book.sharedWith.includes(userId));
+    } else {
+      return this.books.filter(book => book.ownerId === userId);
+    }
   }
 
   // Helper methods for testing
@@ -171,5 +288,49 @@ export class MockExternalBookService implements ExternalBookService {
 
   clearMockData(): void {
     this.mockData = {};
+  }
+}
+
+export class MockAuthMiddleware {
+  extractContext() {
+    return async (req: any, res: any, next: any) => {
+      if (req.headers.authorization === 'Bearer valid-token') {
+        req.userContext = {
+          isAuthenticated: true,
+          id: 'user-123',
+          email: 'test@example.com',
+          name: 'Test User',
+        };
+        req.user = {
+          id: 'user-123',
+          email: 'test@example.com',
+          name: 'Test User',
+        };
+      } else {
+        req.userContext = { isAuthenticated: false };
+      }
+      next();
+    };
+  }
+
+  requireAuth() {
+    return async (req: any, res: any, next: any) => {
+      if (req.headers.authorization === 'Bearer valid-token') {
+        req.userContext = {
+          isAuthenticated: true,
+          id: 'user-123',
+          email: 'test@example.com',
+          name: 'Test User',
+        };
+        req.user = {
+          id: 'user-123',
+          email: 'test@example.com',
+          name: 'Test User',
+        };
+        next();
+      } else {
+        res.status(401).json({ error: 'Authentication required' });
+      }
+    };
   }
 }

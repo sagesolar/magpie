@@ -10,12 +10,17 @@ class MagpieApp {
     this.books = [];
     this.filteredBooks = [];
     this.isInitialized = false;
+    this.currentUser = null;
+    this.isAuthenticated = false;
 
     this.init();
   }
 
   async init() {
     try {
+      // Initialize authentication
+      await this.initAuthentication();
+
       // Initialize IndexedDB
       await bookDB.init();
 
@@ -27,6 +32,7 @@ class MagpieApp {
 
       // Update UI
       this.updateConnectionStatus();
+      this.updateAuthUI();
       this.renderBooks();
       this.populateGenreFilter();
       this.updateVersionInfo();
@@ -39,6 +45,33 @@ class MagpieApp {
     } catch (error) {
       console.error('Failed to initialize app:', error);
       this.showToast('Failed to initialize app', 'error');
+    }
+  }
+
+  async initAuthentication() {
+    try {
+      // Initialize auth service
+      if (window.magpieAuth) {
+        await window.magpieAuth.initialize();
+
+        // Check if user is already authenticated
+        this.isAuthenticated = window.magpieAuth.isAuthenticated();
+        this.currentUser = window.magpieAuth.getCurrentUser();
+
+        // Setup auth event listeners
+        window.addEventListener('magpie:login', event => {
+          this.handleLogin(event.detail.user, event.detail.error);
+        });
+
+        window.addEventListener('magpie:logout', () => {
+          this.handleLogout();
+        });
+
+        console.log('Authentication initialized. Logged in:', this.isAuthenticated);
+      }
+    } catch (error) {
+      console.warn('Authentication initialization failed:', error);
+      // Continue without auth - offline mode
     }
   }
 
@@ -82,7 +115,7 @@ class MagpieApp {
         try {
           // First sync any offline changes
           await apiService.syncOfflineChanges();
-          
+
           // Then fetch latest books from server
           const response = await apiService.getAllBooks();
           if (response && response.data) {
@@ -90,7 +123,7 @@ class MagpieApp {
             await bookDB.saveBooksFromServer(response.data);
             console.log(`Fetched ${response.data.length} books from server`);
           }
-          
+
           // Reload from local database after server sync
           this.books = await bookDB.getAllBooks();
           this.filteredBooks = [...this.books];
@@ -145,13 +178,13 @@ class MagpieApp {
     // Use setTimeout to ensure DOM is ready
     setTimeout(() => {
       const versionInfo = document.getElementById('versionInfo');
-      
+
       if (versionInfo && window.APP_VERSION) {
         const buildInfo = window.BUILD_NUMBER ? `b${window.BUILD_NUMBER}` : '';
         const envInfo = window.ENVIRONMENT === 'development' ? ' (dev)' : '';
         const versionText = `${window.APP_VERSION}${buildInfo}${envInfo}`;
         versionInfo.textContent = versionText;
-        
+
         // Add the dev class if in development
         if (window.ENVIRONMENT === 'development') {
           versionInfo.classList.add('dev');
@@ -164,6 +197,12 @@ class MagpieApp {
 
   // Tab Management
   switchTab(tabName) {
+    // Check if trying to access shared tab without authentication
+    if (tabName === 'shared' && !this.isAuthenticated) {
+      this.showToast('Please sign in to view shared books', 'warning');
+      return;
+    }
+
     // Remove active class from all tabs and content
     document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
     document
@@ -171,7 +210,7 @@ class MagpieApp {
       .forEach(content => content.classList.remove('active'));
 
     // Add active class to selected tab and content
-    event.target.classList.add('active');
+    document.querySelector(`[onclick="app.switchTab('${tabName}')"]`).classList.add('active');
     document.getElementById(`${tabName}-tab`).classList.add('active');
 
     this.currentTab = tabName;
@@ -183,6 +222,9 @@ class MagpieApp {
         break;
       case 'favourites':
         this.renderFavourites();
+        break;
+      case 'shared':
+        this.renderSharedBooks();
         break;
       case 'wishlist':
         this.renderWishlist();
@@ -197,19 +239,60 @@ class MagpieApp {
   renderBooks() {
     const container = document.getElementById('booksContainer');
 
-    if (!this.filteredBooks.length) {
+    // Filter books based on authentication and ownership
+    const visibleBooks = this.filterUserAccessibleBooks(this.filteredBooks);
+
+    if (!visibleBooks.length) {
+      const isAuthenticated = window.magpieAuth && window.magpieAuth.isAuthenticated();
+      const emptyMessage = isAuthenticated ? 'No books in your collection' : 'No books found';
+      const emptySubtext = isAuthenticated
+        ? 'Start building your personal collection by adding books!'
+        : 'Start building your collection by adding books!';
+
       container.innerHTML = `
         <div class="empty-state">
-          <h3>No books found</h3>
-          <p>Start building your collection by adding books!</p>
+          <h3>${emptyMessage}</h3>
+          <p>${emptySubtext}</p>
           <button class="btn btn-primary" onclick="app.showAddBookModal()">Add Your First Book</button>
         </div>
       `;
       return;
     }
 
-    const booksHTML = this.filteredBooks.map(book => this.renderBookCard(book)).join('');
+    const booksHTML = visibleBooks.map(book => this.renderBookCard(book)).join('');
     container.innerHTML = `<div class="books-grid">${booksHTML}</div>`;
+  }
+
+  filterUserAccessibleBooks(books) {
+    // If not authenticated, show all books (legacy mode)
+    if (!window.magpieAuth || !window.magpieAuth.isAuthenticated()) {
+      return books;
+    }
+
+    const currentUser = window.magpieAuth.getCurrentUser();
+    if (!currentUser) {
+      return books;
+    }
+
+    // Filter books that user owns or has access to
+    return books.filter(book => {
+      // If book has no owner (legacy books), show them
+      if (!book.ownerId) {
+        return true;
+      }
+
+      // Show if user owns the book
+      if (book.ownerId === currentUser.email) {
+        return true;
+      }
+
+      // Show if book is shared with user
+      if (book.sharedWith && book.sharedWith.some(share => share.userEmail === currentUser.email)) {
+        return true;
+      }
+
+      return false;
+    });
   }
 
   renderBookCard(book) {
@@ -289,6 +372,7 @@ class MagpieApp {
           <div><strong>Published:</strong> ${book.publishingYear || 'N/A'}</div>
           <div><strong>Rating:</strong> ${book.rating ? '⭐'.repeat(book.rating) : 'Not rated'}</div>
           ${book.loanStatus?.loanedTo ? `<div><strong>Loaned to:</strong> ${book.loanStatus.loanedTo}</div>` : ''}
+          ${this.renderOwnershipInfo(book)}
         </div>
         </div>
       </div>
@@ -297,7 +381,7 @@ class MagpieApp {
 
   renderFavourites() {
     const container = document.getElementById('favouritesContainer');
-    const favourites = this.books.filter(book => book.isFavourite);
+    const favourites = this.filterUserAccessibleBooks(this.books.filter(book => book.isFavourite));
 
     if (!favourites.length) {
       container.innerHTML = `
@@ -316,7 +400,7 @@ class MagpieApp {
   renderWishlist() {
     const container = document.getElementById('wishlistContainer');
     // For now, wishlist shows unread books
-    const wishlist = this.books.filter(book => !book.isRead);
+    const wishlist = this.filterUserAccessibleBooks(this.books.filter(book => !book.isRead));
 
     if (!wishlist.length) {
       container.innerHTML = `
@@ -334,7 +418,7 @@ class MagpieApp {
 
   renderLoans() {
     const container = document.getElementById('loansContainer');
-    const loans = this.books.filter(book => book.loanedTo);
+    const loans = this.filterUserAccessibleBooks(this.books.filter(book => book.loanedTo));
 
     if (!loans.length) {
       container.innerHTML = `
@@ -348,6 +432,46 @@ class MagpieApp {
 
     const booksHTML = loans.map(book => this.renderBookCard(book)).join('');
     container.innerHTML = `<div class="books-grid">${booksHTML}</div>`;
+  }
+
+  renderOwnershipInfo(book) {
+    // Check if user is authenticated
+    if (!window.magpieAuth || !window.magpieAuth.isAuthenticated()) {
+      return '';
+    }
+
+    const currentUser = window.magpieAuth.getCurrentUser();
+    if (!currentUser || !book.ownerId) {
+      return '';
+    }
+
+    // Check if current user owns the book
+    const isOwner = book.ownerId === currentUser.email;
+
+    // Check if book is shared with current user
+    const isShared =
+      book.sharedWith && book.sharedWith.some(share => share.userEmail === currentUser.email);
+
+    let ownershipHTML = '';
+
+    if (isOwner) {
+      ownershipHTML += `<div><strong>Owner:</strong> You</div>`;
+
+      // Show shared users if any
+      if (book.sharedWith && book.sharedWith.length > 0) {
+        const sharedUsers = book.sharedWith.map(share => share.userEmail).join(', ');
+        ownershipHTML += `<div><strong>Shared with:</strong> ${sharedUsers}</div>`;
+      }
+    } else if (isShared) {
+      const share = book.sharedWith.find(s => s.userEmail === currentUser.email);
+      ownershipHTML += `<div><strong>Shared by:</strong> ${book.ownerId}</div>`;
+      if (share.permissions) {
+        const permissions = share.permissions.join(', ');
+        ownershipHTML += `<div><strong>Permissions:</strong> ${permissions}</div>`;
+      }
+    }
+
+    return ownershipHTML;
   }
 
   // Search and Filtering
@@ -734,6 +858,295 @@ class MagpieApp {
     setTimeout(() => {
       toast.classList.remove('show');
     }, 3000);
+  }
+
+  // Authentication event handlers
+  handleLogin(user, error) {
+    if (error) {
+      console.error('Login failed:', error);
+      this.showToast(`Login failed: ${error}`, 'error');
+      return;
+    }
+
+    this.isAuthenticated = true;
+    this.currentUser = user;
+    this.updateAuthUI();
+    this.showToast(`Welcome back, ${user.name}!`, 'success');
+
+    // Refresh data with user context
+    this.loadBooks();
+  }
+
+  handleLogout() {
+    this.isAuthenticated = false;
+    this.currentUser = null;
+    this.updateAuthUI();
+    this.showToast('Logged out successfully', 'info');
+
+    // Refresh data (will show offline data only)
+    this.loadBooks();
+  }
+
+  // Authentication UI methods
+  updateAuthUI() {
+    const userProfile = document.getElementById('userProfile');
+    const loginSection = document.getElementById('loginSection');
+    const sharedTab = document.getElementById('sharedTab');
+    const sharedAuthMessage = document.getElementById('sharedAuthMessage');
+    const sharedContent = document.getElementById('sharedContent');
+
+    if (this.isAuthenticated && this.currentUser) {
+      // Show user profile
+      userProfile.classList.remove('hidden');
+      loginSection.classList.add('hidden');
+
+      // Update user info
+      document.getElementById('userName').textContent = this.currentUser.name;
+      document.getElementById('userEmail').textContent = this.currentUser.email;
+      document.getElementById('userAvatar').src =
+        this.currentUser.profilePictureUrl || 'images/default-avatar.png';
+
+      // Show shared tab content
+      sharedTab.classList.remove('disabled');
+      if (this.currentTab === 'shared') {
+        sharedAuthMessage.classList.add('hidden');
+        sharedContent.classList.remove('hidden');
+      }
+    } else {
+      // Show login section
+      userProfile.classList.add('hidden');
+      loginSection.classList.remove('hidden');
+
+      // Hide shared content, show auth message
+      sharedTab.classList.add('disabled');
+      if (this.currentTab === 'shared') {
+        sharedAuthMessage.classList.remove('hidden');
+        sharedContent.classList.add('hidden');
+      }
+    }
+  }
+
+  async showLogin() {
+    try {
+      if (window.magpieAuth) {
+        await window.magpieAuth.showLoginPrompt();
+      } else {
+        this.showToast('Authentication service not available', 'error');
+      }
+    } catch (error) {
+      console.error('Failed to show login:', error);
+      this.showToast('Failed to show login', 'error');
+    }
+  }
+
+  async logout() {
+    try {
+      if (window.magpieAuth) {
+        await window.magpieAuth.logout();
+      }
+    } catch (error) {
+      console.error('Logout failed:', error);
+      this.showToast('Logout failed', 'error');
+    }
+  }
+
+  // User settings methods
+  showUserSettings() {
+    if (!this.isAuthenticated) {
+      this.showToast('Please sign in to access settings', 'warning');
+      return;
+    }
+
+    const modal = document.getElementById('userSettingsModal');
+    modal.classList.add('active');
+
+    // Populate current settings
+    this.populateUserSettings();
+  }
+
+  closeUserSettings() {
+    const modal = document.getElementById('userSettingsModal');
+    modal.classList.remove('active');
+  }
+
+  populateUserSettings() {
+    if (!this.currentUser?.preferences) return;
+
+    const prefs = this.currentUser.preferences;
+
+    document.getElementById('booksPerPageSetting').value = prefs.booksPerPage || 20;
+    document.getElementById('defaultViewSetting').value = prefs.defaultView || 'grid';
+    document.getElementById('sortingStyleSetting').value = prefs.sortingStyle || 'alphabetical';
+    document.getElementById('themeSetting').value = prefs.theme || 'auto';
+    document.getElementById('sharingVisibilitySetting').value =
+      prefs.sharingVisibility || 'private';
+
+    document.getElementById('newBooksNotification').checked = prefs.notifications?.newBooks ?? true;
+    document.getElementById('loanRemindersNotification').checked =
+      prefs.notifications?.loanReminders ?? true;
+    document.getElementById('sharedCollectionsNotification').checked =
+      prefs.notifications?.sharedCollections ?? false;
+  }
+
+  async saveUserSettings(event) {
+    event.preventDefault();
+
+    if (!this.isAuthenticated) {
+      this.showToast('Please sign in to save settings', 'warning');
+      return;
+    }
+
+    try {
+      const preferences = {
+        booksPerPage: parseInt(document.getElementById('booksPerPageSetting').value),
+        defaultView: document.getElementById('defaultViewSetting').value,
+        sortingStyle: document.getElementById('sortingStyleSetting').value,
+        theme: document.getElementById('themeSetting').value,
+        sharingVisibility: document.getElementById('sharingVisibilitySetting').value,
+        notifications: {
+          newBooks: document.getElementById('newBooksNotification').checked,
+          loanReminders: document.getElementById('loanRemindersNotification').checked,
+          sharedCollections: document.getElementById('sharedCollectionsNotification').checked,
+        },
+      };
+
+      // Update user preferences via API
+      const response = await apiService.updateUserProfile({ preferences });
+
+      // Update local user data
+      this.currentUser.preferences = { ...this.currentUser.preferences, ...preferences };
+
+      this.closeUserSettings();
+      this.showToast('Settings saved successfully', 'success');
+
+      // Apply theme if changed
+      this.applyTheme(preferences.theme);
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+      this.showToast('Failed to save settings', 'error');
+    }
+  }
+
+  applyTheme(theme) {
+    const body = document.body;
+    body.classList.remove('theme-light', 'theme-dark');
+
+    if (theme === 'light') {
+      body.classList.add('theme-light');
+    } else if (theme === 'dark') {
+      body.classList.add('theme-dark');
+    }
+    // 'auto' uses system preference (default CSS)
+  }
+
+  // Book sharing methods
+  showShareModal() {
+    if (!this.isAuthenticated) {
+      this.showToast('Please sign in to share books', 'warning');
+      return;
+    }
+
+    const modal = document.getElementById('shareModal');
+    modal.classList.add('active');
+
+    // Populate books for selection
+    this.populateBookSelection();
+  }
+
+  closeShareModal() {
+    const modal = document.getElementById('shareModal');
+    modal.classList.remove('active');
+  }
+
+  populateBookSelection() {
+    const container = document.getElementById('bookSelectionContainer');
+    const userBooks = this.books.filter(book => book.ownerId === this.currentUser?.id);
+
+    container.innerHTML = userBooks
+      .map(
+        book => `
+      <label class="book-selection-item">
+        <input type="checkbox" name="selectedBooks" value="${book.isbn}" />
+        <span class="book-title">${book.title}</span>
+        <span class="book-author">${book.authors.join(', ')}</span>
+      </label>
+    `
+      )
+      .join('');
+  }
+
+  async shareBooks(event) {
+    event.preventDefault();
+
+    try {
+      const emails = document
+        .getElementById('shareEmailsInput')
+        .value.split(',')
+        .map(email => email.trim())
+        .filter(email => email);
+
+      const selectedBooks = Array.from(
+        document.querySelectorAll('input[name="selectedBooks"]:checked')
+      ).map(input => input.value);
+
+      const permissions = {
+        canView: true,
+        canEdit: document.getElementById('canEditPermission').checked,
+        canShare: document.getElementById('canSharePermission').checked,
+      };
+
+      if (emails.length === 0) {
+        this.showToast('Please enter at least one email address', 'warning');
+        return;
+      }
+
+      if (selectedBooks.length === 0) {
+        this.showToast('Please select at least one book to share', 'warning');
+        return;
+      }
+
+      // Share books via API
+      for (const isbn of selectedBooks) {
+        await apiService.shareBook(isbn, { emails, permissions });
+      }
+
+      this.closeShareModal();
+      this.showToast(`Successfully shared ${selectedBooks.length} books`, 'success');
+    } catch (error) {
+      console.error('Failed to share books:', error);
+      this.showToast('Failed to share books', 'error');
+    }
+  }
+
+  async renderSharedBooks() {
+    if (!this.isAuthenticated) return;
+
+    try {
+      const sharedBooks = await apiService.getSharedBooks();
+      const container = document.getElementById('sharedBooksContainer');
+
+      if (sharedBooks.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <h3>No shared books yet</h3>
+            <p>Books shared with you or by you will appear here.</p>
+          </div>
+        `;
+        return;
+      }
+
+      // Render shared books with sharing info
+      container.innerHTML = sharedBooks.map(book => this.createBookCard(book, true)).join('');
+    } catch (error) {
+      console.error('Failed to load shared books:', error);
+      this.showToast('Failed to load shared books', 'error');
+    }
+  }
+
+  applySharedFilters() {
+    const filter = document.getElementById('sharedFilter').value;
+    // Implementation for filtering shared books
+    this.renderSharedBooks();
   }
 }
 

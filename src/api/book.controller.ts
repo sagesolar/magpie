@@ -7,6 +7,7 @@ import {
   BookSearchQuerySchema,
   IsbnParamSchema,
 } from './validation.schemas';
+import { getAuthenticatedUser, getUserId } from '../infrastructure/auth.middleware';
 
 export class BookController {
   constructor(private bookUseCase: BookUseCase) {}
@@ -41,7 +42,10 @@ export class BookController {
         limit: validatedQuery.limit,
       };
 
-      const result = await this.bookUseCase.getAllBooks(criteria, sort, pagination);
+      // Get user ID from authenticated context (if available)
+      const userId = getUserId(req) || undefined;
+
+      const result = await this.bookUseCase.getAllBooks(criteria, sort, pagination, userId);
       res.json(result);
     } catch (error) {
       next(error);
@@ -52,7 +56,9 @@ export class BookController {
   getBookByIsbn = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { isbn } = IsbnParamSchema.parse(req.params);
-      const book = await this.bookUseCase.getBookByIsbn(isbn);
+      const userId = getUserId(req) || undefined;
+
+      const book = await this.bookUseCase.getBookByIsbn(isbn, userId);
 
       if (!book) {
         res.status(404).json({ error: 'Book not found' });
@@ -65,34 +71,40 @@ export class BookController {
     }
   };
 
-  // POST /books
+  // POST /books (requires authentication)
   createBook = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      const user = getAuthenticatedUser(req);
       const validatedData = CreateBookSchema.parse(req.body);
-      const book = await this.bookUseCase.createBook(validatedData);
+
+      const book = await this.bookUseCase.createBook(validatedData, user.id);
       res.status(201).json(book);
     } catch (error) {
       next(error);
     }
   };
 
-  // PUT /books/:isbn
+  // PUT /books/:isbn (requires authentication)
   updateBook = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      const user = getAuthenticatedUser(req);
       const { isbn } = IsbnParamSchema.parse(req.params);
       const validatedData = UpdateBookSchema.parse(req.body);
-      const book = await this.bookUseCase.updateBook(isbn, validatedData);
+
+      const book = await this.bookUseCase.updateBook(isbn, validatedData, user.id);
       res.json(book);
     } catch (error) {
       next(error);
     }
   };
 
-  // DELETE /books/:isbn
+  // DELETE /books/:isbn (requires authentication)
   deleteBook = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      const user = getAuthenticatedUser(req);
       const { isbn } = IsbnParamSchema.parse(req.params);
-      await this.bookUseCase.deleteBook(isbn);
+
+      await this.bookUseCase.deleteBook(isbn, user.id);
       res.status(204).send();
     } catch (error) {
       next(error);
@@ -108,8 +120,65 @@ export class BookController {
         return;
       }
 
-      const books = await this.bookUseCase.searchBooks(query);
+      const userId = getUserId(req) || undefined;
+      const books = await this.bookUseCase.searchBooks(query, userId);
       res.json(books);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // GET /user/books (requires authentication) - Get user's personal collection
+  getUserBooks = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = getAuthenticatedUser(req);
+      const includeShared = req.query.includeShared !== 'false'; // Default to true
+
+      const books = await this.bookUseCase.getUserBooks(user.id, includeShared);
+      res.json(books);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // POST /books/:isbn/share (requires authentication) - Share a book with other users
+  shareBook = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = getAuthenticatedUser(req);
+      const { isbn } = IsbnParamSchema.parse(req.params);
+      const { userIds, rights, message } = req.body;
+
+      if (!Array.isArray(userIds) || userIds.length === 0) {
+        res.status(400).json({ error: 'userIds must be a non-empty array' });
+        return;
+      }
+
+      const shareData = {
+        userIds,
+        rights,
+        message,
+      };
+
+      const book = await this.bookUseCase.shareBook(isbn, shareData, user.id);
+      res.json(book);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // DELETE /books/:isbn/share/:userId (requires authentication) - Remove user from book
+  removeUserFromBook = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = getAuthenticatedUser(req);
+      const { isbn, userId: userIdToRemove } = req.params;
+
+      if (!isbn || !userIdToRemove) {
+        res.status(400).json({ error: 'ISBN and userId are required' });
+        return;
+      }
+
+      const book = await this.bookUseCase.removeUserFromBook(isbn, userIdToRemove, user.id);
+      res.json(book);
     } catch (error) {
       next(error);
     }
@@ -136,9 +205,10 @@ export class BookController {
     }
   };
 
-  // PUT /books/:isbn/favourite
+  // PUT /books/:isbn/favourite (requires authentication)
   toggleFavourite = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      const user = getAuthenticatedUser(req);
       const { isbn } = IsbnParamSchema.parse(req.params);
       const { isFavourite } = req.body;
 
@@ -147,16 +217,17 @@ export class BookController {
         return;
       }
 
-      const book = await this.bookUseCase.markAsFavourite(isbn, isFavourite);
+      const book = await this.bookUseCase.markAsFavourite(isbn, isFavourite, user.id);
       res.json(book);
     } catch (error) {
       next(error);
     }
   };
 
-  // PUT /books/:isbn/loan
+  // PUT /books/:isbn/loan (requires authentication)
   updateLoanStatus = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      const user = getAuthenticatedUser(req);
       const { isbn } = IsbnParamSchema.parse(req.params);
       const { loanStatus } = req.body;
 
@@ -165,7 +236,7 @@ export class BookController {
         return;
       }
 
-      const book = await this.bookUseCase.updateLoanStatus(isbn, loanStatus);
+      const book = await this.bookUseCase.updateLoanStatus(isbn, loanStatus, user.id);
       res.json(book);
     } catch (error) {
       next(error);

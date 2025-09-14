@@ -3,10 +3,18 @@ import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { BookController } from './api/book.controller';
+import { AuthController } from './api/auth.controller';
 import { createBookRoutes } from './api/book.routes';
+import { createAuthRoutes } from './api/auth.routes';
 import { BookUseCase } from './application/book.usecase';
+import { AuthenticationUseCase } from './application/auth.usecase';
 import { FirestoreBookRepository } from './infrastructure/firestore-book.repository';
+import { FirestoreUserRepository } from './infrastructure/firestore-user.repository';
 import { ExternalBookServiceImpl } from './infrastructure/external-book.service';
+import { GoogleOIDCTokenValidator } from './infrastructure/google-oidc-validator';
+import { UserContextResolverImpl } from './infrastructure/user-context-resolver';
+import { AuthenticationMiddleware } from './infrastructure/auth.middleware';
+import { GoogleOIDCConfig } from './domain/auth.types';
 import { logger } from './utils/logger';
 
 // Load environment variables
@@ -76,22 +84,60 @@ class MagpieServer {
   }
 
   private setupRoutes(): void {
+    // Create Google OIDC configuration
+    const googleConfig: GoogleOIDCConfig = {
+      clientId: process.env.GOOGLE_CLIENT_ID || '',
+      issuer: 'https://accounts.google.com',
+      jwksUri: 'https://www.googleapis.com/oauth2/v3/certs',
+      allowedAudiences: [process.env.GOOGLE_CLIENT_ID || ''],
+    };
+
+    // Validate configuration
+    if (!googleConfig.clientId) {
+      logger.error('GOOGLE_CLIENT_ID environment variable is required');
+      throw new Error('Missing required Google OAuth configuration');
+    }
+
     // Dependency injection - create instances
     const externalBookService = new ExternalBookServiceImpl();
+    const userRepository = new FirestoreUserRepository(
+      this.bookRepository.firestoreInstance, // Use same Firestore instance
+      process.env.FIRESTORE_DATABASE_ID
+    );
+
+    // Authentication infrastructure
+    const tokenValidator = new GoogleOIDCTokenValidator(googleConfig);
+    const userContextResolver = new UserContextResolverImpl(tokenValidator, userRepository);
+    const authMiddleware = new AuthenticationMiddleware(userContextResolver);
+
+    // Use cases
     const bookUseCase = new BookUseCase(this.bookRepository, externalBookService);
+    const authUseCase = new AuthenticationUseCase(tokenValidator, userRepository);
+
+    // Controllers
     const bookController = new BookController(bookUseCase);
+    const authController = new AuthController(authUseCase);
 
     // Health check
     this.app.get('/api/health', (req: Request, res: Response) => {
+      const version = process.env.APP_VERSION || '1.0.0';
+      const environment = process.env.ENVIRONMENT || 'development';
+      const displayVersion = environment === 'development' ? `${version} (dev)` : version;
+
       res.json({
         status: 'healthy',
         timestamp: new Date().toISOString(),
-        version: process.env.npm_package_version || '1.0.0',
+        version: displayVersion,
+        environment,
+        buildNumber: process.env.BUILD_NUMBER,
+        buildDate: process.env.BUILD_DATE,
+        authentication: 'enabled',
       });
     });
 
     // API routes
-    this.app.use('/api', createBookRoutes(bookController));
+    this.app.use('/api', createBookRoutes(bookController, authMiddleware));
+    this.app.use('/api', createAuthRoutes(authController, authMiddleware));
 
     // Serve PWA for all other routes
     this.app.get('*', (req: Request, res: Response) => {

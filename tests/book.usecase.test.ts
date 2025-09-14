@@ -7,6 +7,7 @@ describe('BookUseCase', () => {
   let bookUseCase: BookUseCase;
   let mockRepository: MockBookRepository;
   let mockExternalService: MockExternalBookService;
+  const testUserId = 'test-user-123';
 
   beforeEach(() => {
     mockRepository = new MockBookRepository();
@@ -30,7 +31,7 @@ describe('BookUseCase', () => {
     };
 
     it('should create a book successfully', async () => {
-      const book = await bookUseCase.createBook(validBookData);
+      const book = await bookUseCase.createBook(validBookData, testUserId);
 
       expect(book).toMatchObject(validBookData);
       expect(book.isFavourite).toBe(false);
@@ -40,7 +41,7 @@ describe('BookUseCase', () => {
 
     it('should set isFavourite to provided value', async () => {
       const bookData = { ...validBookData, isFavourite: true };
-      const book = await bookUseCase.createBook(bookData);
+      const book = await bookUseCase.createBook(bookData, testUserId);
 
       expect(book.isFavourite).toBe(true);
     });
@@ -48,13 +49,15 @@ describe('BookUseCase', () => {
     it('should throw error for invalid ISBN', async () => {
       const invalidBookData = { ...validBookData, isbn: '123' };
 
-      await expect(bookUseCase.createBook(invalidBookData)).rejects.toThrow('Invalid ISBN format');
+      await expect(bookUseCase.createBook(invalidBookData, testUserId)).rejects.toThrow(
+        'Invalid ISBN format'
+      );
     });
 
     it('should throw error for duplicate ISBN', async () => {
-      await bookUseCase.createBook(validBookData);
+      await bookUseCase.createBook(validBookData, testUserId);
 
-      await expect(bookUseCase.createBook(validBookData)).rejects.toThrow(
+      await expect(bookUseCase.createBook(validBookData, testUserId)).rejects.toThrow(
         'Book with this ISBN already exists'
       );
     });
@@ -71,7 +74,7 @@ describe('BookUseCase', () => {
         type: 'personal',
       };
 
-      await bookUseCase.createBook(bookData);
+      await bookUseCase.createBook(bookData, testUserId);
       const foundBook = await bookUseCase.getBookByIsbn('9780134685991');
 
       expect(foundBook).toMatchObject(bookData);
@@ -91,36 +94,45 @@ describe('BookUseCase', () => {
   describe('getAllBooks', () => {
     beforeEach(async () => {
       // Create test books
-      await bookUseCase.createBook({
-        isbn: '1111111111111',
-        title: 'JavaScript: The Good Parts',
-        authors: ['Douglas Crockford'],
-        publisher: "O'Reilly Media",
-        publishingYear: 2008,
-        type: 'reference',
-        genre: 'Programming',
-      });
+      await bookUseCase.createBook(
+        {
+          isbn: '1111111111111',
+          title: 'JavaScript: The Good Parts',
+          authors: ['Douglas Crockford'],
+          publisher: "O'Reilly Media",
+          publishingYear: 2008,
+          type: 'reference',
+          genre: 'Programming',
+        },
+        testUserId
+      );
 
-      await bookUseCase.createBook({
-        isbn: '2222222222222',
-        title: 'Clean Code',
-        authors: ['Robert Martin'],
-        publisher: 'Prentice Hall',
-        publishingYear: 2008,
-        type: 'reference',
-        genre: 'Programming',
-        isFavourite: true,
-      });
+      await bookUseCase.createBook(
+        {
+          isbn: '2222222222222',
+          title: 'Clean Code',
+          authors: ['Robert Martin'],
+          publisher: 'Prentice Hall',
+          publishingYear: 2008,
+          type: 'reference',
+          genre: 'Programming',
+          isFavourite: true,
+        },
+        testUserId
+      );
 
-      await bookUseCase.createBook({
-        isbn: '3333333333333',
-        title: 'The Hobbit',
-        authors: ['J.R.R. Tolkien'],
-        publisher: 'George Allen & Unwin',
-        publishingYear: 1937,
-        type: 'personal',
-        genre: 'Fantasy',
-      });
+      await bookUseCase.createBook(
+        {
+          isbn: '3333333333333',
+          title: 'The Hobbit',
+          authors: ['J.R.R. Tolkien'],
+          publisher: 'George Allen & Unwin',
+          publishingYear: 1937,
+          type: 'personal',
+          genre: 'Fantasy',
+        },
+        testUserId
+      );
     });
 
     it('should return all books with default pagination', async () => {
@@ -176,19 +188,26 @@ describe('BookUseCase', () => {
 
   describe('updateBook', () => {
     it('should update book successfully', async () => {
-      await bookUseCase.createBook({
-        isbn: '1111111111111',
-        title: 'Original Title',
-        authors: ['Original Author'],
-        publisher: 'Original Publisher',
-        publishingYear: 2020,
-        type: 'reference',
-      });
+      await bookUseCase.createBook(
+        {
+          isbn: '1111111111111',
+          title: 'Original Title',
+          authors: ['Original Author'],
+          publisher: 'Original Publisher',
+          publishingYear: 2020,
+          type: 'reference',
+        },
+        testUserId
+      );
 
-      const updatedBook = await bookUseCase.updateBook('1111111111111', {
-        title: 'Updated Title',
-        genre: 'Updated Genre',
-      });
+      const updatedBook = await bookUseCase.updateBook(
+        '1111111111111',
+        {
+          title: 'Updated Title',
+          genre: 'Updated Genre',
+        },
+        testUserId
+      );
 
       expect(updatedBook.title).toBe('Updated Title');
       expect(updatedBook.genre).toBe('Updated Genre');
@@ -196,59 +215,70 @@ describe('BookUseCase', () => {
     });
 
     it('should throw error when book not found', async () => {
-      await expect(bookUseCase.updateBook('9999999999999', { title: 'New Title' })).rejects.toThrow(
-        'Book not found'
-      );
+      await expect(
+        bookUseCase.updateBook('9999999999999', { title: 'New Title' }, testUserId)
+      ).rejects.toThrow('Book not found');
     });
 
     it('should throw error for invalid ISBN', async () => {
-      await expect(bookUseCase.updateBook('invalid', { title: 'New Title' })).rejects.toThrow(
-        'Invalid ISBN format'
-      );
+      await expect(
+        bookUseCase.updateBook('invalid', { title: 'New Title' }, testUserId)
+      ).rejects.toThrow('Invalid ISBN format');
     });
   });
 
   describe('deleteBook', () => {
     it('should delete book successfully', async () => {
-      await bookUseCase.createBook({
-        isbn: '1111111111111',
-        title: 'Test Book',
-        authors: ['Test Author'],
-        publisher: 'Test Publisher',
-        publishingYear: 2020,
-        type: 'reference',
-      });
+      await bookUseCase.createBook(
+        {
+          isbn: '1111111111111',
+          title: 'Test Book',
+          authors: ['Test Author'],
+          publisher: 'Test Publisher',
+          publishingYear: 2020,
+          type: 'reference',
+        },
+        testUserId
+      );
 
-      await expect(bookUseCase.deleteBook('1111111111111')).resolves.not.toThrow();
+      await expect(bookUseCase.deleteBook('1111111111111', testUserId)).resolves.not.toThrow();
 
       const foundBook = await bookUseCase.getBookByIsbn('1111111111111');
       expect(foundBook).toBeNull();
     });
 
     it('should throw error when book not found', async () => {
-      await expect(bookUseCase.deleteBook('9999999999999')).rejects.toThrow('Book not found');
+      await expect(bookUseCase.deleteBook('9999999999999', testUserId)).rejects.toThrow(
+        'Book not found'
+      );
     });
   });
 
   describe('searchBooks', () => {
     beforeEach(async () => {
-      await bookUseCase.createBook({
-        isbn: '1111111111111',
-        title: 'JavaScript Guide',
-        authors: ['John Doe'],
-        publisher: 'Tech Books',
-        publishingYear: 2020,
-        type: 'reference',
-      });
+      await bookUseCase.createBook(
+        {
+          isbn: '1111111111111',
+          title: 'JavaScript Guide',
+          authors: ['John Doe'],
+          publisher: 'Tech Books',
+          publishingYear: 2020,
+          type: 'reference',
+        },
+        testUserId
+      );
 
-      await bookUseCase.createBook({
-        isbn: '2222222222222',
-        title: 'Python Basics',
-        authors: ['Jane Smith'],
-        publisher: 'Code Press',
-        publishingYear: 2021,
-        type: 'reference',
-      });
+      await bookUseCase.createBook(
+        {
+          isbn: '2222222222222',
+          title: 'Python Basics',
+          authors: ['Jane Smith'],
+          publisher: 'Code Press',
+          publishingYear: 2021,
+          type: 'reference',
+        },
+        testUserId
+      );
     });
 
     it('should search by title', async () => {
@@ -299,16 +329,19 @@ describe('BookUseCase', () => {
 
   describe('markAsFavourite', () => {
     it('should mark book as favourite', async () => {
-      await bookUseCase.createBook({
-        isbn: '1111111111111',
-        title: 'Test Book',
-        authors: ['Test Author'],
-        publisher: 'Test Publisher',
-        publishingYear: 2020,
-        type: 'reference',
-      });
+      await bookUseCase.createBook(
+        {
+          isbn: '1111111111111',
+          title: 'Test Book',
+          authors: ['Test Author'],
+          publisher: 'Test Publisher',
+          publishingYear: 2020,
+          type: 'reference',
+        },
+        testUserId
+      );
 
-      const updatedBook = await bookUseCase.markAsFavourite('1111111111111', true);
+      const updatedBook = await bookUseCase.markAsFavourite('1111111111111', true, testUserId);
 
       expect(updatedBook.isFavourite).toBe(true);
     });
@@ -316,14 +349,17 @@ describe('BookUseCase', () => {
 
   describe('updateLoanStatus', () => {
     it('should update loan status', async () => {
-      await bookUseCase.createBook({
-        isbn: '1111111111111',
-        title: 'Test Book',
-        authors: ['Test Author'],
-        publisher: 'Test Publisher',
-        publishingYear: 2020,
-        type: 'reference',
-      });
+      await bookUseCase.createBook(
+        {
+          isbn: '1111111111111',
+          title: 'Test Book',
+          authors: ['Test Author'],
+          publisher: 'Test Publisher',
+          publishingYear: 2020,
+          type: 'reference',
+        },
+        testUserId
+      );
 
       const loanStatus = {
         isLoaned: true,
@@ -331,7 +367,11 @@ describe('BookUseCase', () => {
         loanedDate: new Date(),
       };
 
-      const updatedBook = await bookUseCase.updateLoanStatus('1111111111111', loanStatus);
+      const updatedBook = await bookUseCase.updateLoanStatus(
+        '1111111111111',
+        loanStatus,
+        testUserId
+      );
 
       expect(updatedBook.loanStatus).toMatchObject(loanStatus);
     });

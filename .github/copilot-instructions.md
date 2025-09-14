@@ -37,6 +37,7 @@
 ## Project Summary
 
 **Project Naming Convention:**
+
 - **Internal Name**: Magpie (used in code, repositories, file names, and technical documentation)
 - **External/Public Name**: Magpie Bibliotherapy (used in user-facing interfaces, app names, and public descriptions)
 - **Project Description**: Your book collection manager with offline support

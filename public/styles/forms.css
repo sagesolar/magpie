@@ -252,3 +252,162 @@
     align-items: center;
   }
 }
+
+/* User Settings and Sharing Modal Styles */
+.modal.active {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.3s;
+}
+
+.settings-section {
+  margin-bottom: 25px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.settings-section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.settings-section h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 15px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  font-weight: 500;
+  color: #374151;
+}
+
+.checkbox-label input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  accent-color: #667eea;
+}
+
+.checkbox-label span {
+  user-select: none;
+}
+
+.permission-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 15px;
+  background: #f9fafb;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.book-selection {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 10px;
+  background: #f9fafb;
+}
+
+.book-selection-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.book-selection-item:hover {
+  background: #e5e7eb;
+}
+
+.book-selection-item input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  accent-color: #667eea;
+}
+
+.book-title {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.book-author {
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 25px;
+  padding-top: 20px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.empty-state h3 {
+  margin-bottom: 10px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.empty-state p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* Theme Support */
+.theme-dark .modal-content {
+  background: #1f2937;
+  color: white;
+}
+
+.theme-dark .settings-section {
+  border-bottom-color: #374151;
+}
+
+.theme-dark .settings-section h3,
+.theme-dark .checkbox-label,
+.theme-dark .book-title {
+  color: white;
+}
+
+.theme-dark .book-author {
+  color: #9ca3af;
+}
+
+.theme-dark .permission-options,
+.theme-dark .book-selection {
+  background: #374151;
+  border-color: #4b5563;
+}
+
+.theme-dark .modal-actions {
+  border-top-color: #374151;
+}
+
+.theme-light .modal-content {
+  background: white;
+  color: #1f2937;
+}

@@ -7,19 +7,28 @@ import {
   BookSortOptions,
   PaginationOptions,
   PaginatedResult,
+  ShareBookDto,
 } from '../domain/book.types';
 
 export interface BookRepository {
-  create(book: CreateBookDto): Promise<Book>;
-  findById(isbn: string): Promise<Book | null>;
+  create(book: CreateBookDto, userId: string): Promise<Book>;
+  findById(isbn: string, userId?: string): Promise<Book | null>;
   findAll(
     criteria?: BookSearchCriteria,
     sort?: BookSortOptions,
-    pagination?: PaginationOptions
+    pagination?: PaginationOptions,
+    userId?: string
   ): Promise<PaginatedResult<Book>>;
-  update(isbn: string, updates: UpdateBookDto): Promise<Book | null>;
-  delete(isbn: string): Promise<boolean>;
-  search(query: string): Promise<Book[]>;
+  update(isbn: string, updates: UpdateBookDto, userId: string): Promise<Book | null>;
+  delete(isbn: string, userId: string): Promise<boolean>;
+  search(query: string, userId?: string): Promise<Book[]>;
+  shareBook(isbn: string, shareData: ShareBookDto, userId: string): Promise<Book | null>;
+  removeUserFromBook(
+    isbn: string,
+    userIdToRemove: string,
+    requestingUserId: string
+  ): Promise<Book | null>;
+  getUserBooks(userId: string, includeShared?: boolean): Promise<Book[]>;
   close(): Promise<void>;
 }
 

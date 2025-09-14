@@ -33,6 +33,16 @@ A modern, full-stack book collection management system built with clean architec
 - **Mobile-First**: Responsive design optimized for all devices
 - **App-like Experience**: Install on device home screen
 
+### 🔐 Authentication & User Management
+
+- **Google OAuth Integration**: Secure login with Google accounts using OpenID Connect (OIDC)
+- **Personal Book Collections**: Each user has their own private book collection
+- **Book Ownership**: Books are tied to user accounts with ownership validation
+- **Book Sharing**: Share books with other users while maintaining ownership
+- **Secure API**: All book operations require authentication and validate user permissions
+- **Profile Management**: User profile and settings accessible after login
+- **Session Management**: Secure token-based authentication with automatic refresh
+
 ## 🚀 Quick Start
 
 ### Prerequisites
@@ -57,7 +67,11 @@ A modern, full-stack book collection management system built with clean architec
    # Edit .env with your configuration
    ```
 
-   > **Windows Users**: For CI/CD setup and additional tooling, run `.\scripts\setup-windows.ps1` in PowerShell to validate prerequisites and get setup guidance.
+   **Required for authentication**: Set up Google OAuth credentials:
+   - Create a Google Cloud project and enable the Google+ API
+   - Create OAuth 2.0 credentials (Web application)
+   - Add `http://localhost:3000` to authorized origins
+   - Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in your `.env` file
 
 3. **Build the project**:
 
@@ -84,6 +98,13 @@ A modern, full-stack book collection management system built with clean architec
 
 ## 📋 API Endpoints
 
+### Authentication
+
+- `POST /api/auth/login` - Initiate Google OAuth login
+- `POST /api/auth/callback` - Handle OAuth callback and validate tokens
+- `GET /api/auth/me` - Get current user profile
+- `POST /api/auth/logout` - Logout and invalidate session
+
 ### Books
 
 - `GET /api/books` - Get all books (with filtering, sorting, pagination)
@@ -91,6 +112,8 @@ A modern, full-stack book collection management system built with clean architec
 - `POST /api/books` - Create new book
 - `PUT /api/books/:isbn` - Update book
 - `DELETE /api/books/:isbn` - Delete book
+- `POST /api/books/:isbn/share` - Share book with other users
+- `DELETE /api/books/:isbn/users/:userId` - Remove user access from book
 
 ### Search
 
@@ -121,6 +144,11 @@ NODE_ENV=development
 # Google Cloud Firestore Configuration
 GOOGLE_CLOUD_PROJECT_ID=your-project-id
 GOOGLE_APPLICATION_CREDENTIALS=path/to/service-account.json
+
+# Google OAuth Configuration
+GOOGLE_CLIENT_ID=your-oauth-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your-oauth-client-secret
+OAUTH_REDIRECT_URI=http://localhost:3000
 
 # CORS Configuration
 ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8080
@@ -158,72 +186,34 @@ The system uses **Google Cloud Firestore** as its NoSQL document database, provi
 
 ```
 magpie/
-├── .github/            # GitHub Actions workflows
-│   ├── workflows/      # CI/CD pipeline definitions
-├── docs/               # Documentation
-│   ├── CI_CD_SETUP.md  # CI/CD setup guide
-│   ├── DEPLOYMENT.md   # Deployment instructions
-│   ├── FIRESTORE_SETUP.md # Database setup guide
-│   └── SECURITY.md     # Security guidelines
-├── scripts/            # Setup and utility scripts
-│   ├── seed-database.ps1       # PowerShell database seeding script
-│   ├── view-database.ps1       # PowerShell database viewing script
-│   └── database/       # Database management scripts
-│       ├── check-database.js   # Database validation script
-│       ├── seed-data.json      # Sample data for seeding
-│       ├── seed-firestore.js   # Firestore seeding script
-│       ├── setup-metadata.js  # Database metadata initialization
-│       └── view-database.js    # Database viewing utility
-├── src/                # Source code
+├── .github/workflows/  # CI/CD pipeline definitions
+├── docs/               # Documentation guides
+├── src/                # Backend source code
 │   ├── api/            # REST API controllers and routes
 │   ├── application/    # Use cases and business logic
 │   ├── domain/         # Business entities and types
 │   ├── infrastructure/ # External services and data access
-│   ├── utils/          # Utility functions and helpers
+│   ├── utils/          # Utility functions
 │   └── server.ts       # Application entry point
-├── tests/              # Unit tests
-│   ├── setup.ts        # Test configuration
-│   ├── mocks.ts        # Mock implementations
-│   ├── book.usecase.test.ts    # Application layer tests
-│   └── book.controller.test.ts # API layer tests
-├── public/             # PWA static files
+├── tests/              # Unit tests and mocks
+├── public/             # PWA frontend
 │   ├── index.html      # Main PWA interface
 │   ├── manifest.json   # PWA manifest
 │   ├── sw.js          # Service worker
-│   ├── vite.config.js # Vite build configuration
-│   ├── package.json   # Frontend dependencies
 │   ├── styles/        # CSS files
-│   │   ├── main.css   # Main layout and theme
-│   │   ├── components.css # Reusable UI components
-│   │   ├── books.css  # Book-specific styling
-│   │   └── forms.css  # Form elements styling
-│   ├── images/        # Application images and icons
-│   │   ├── favicons/  # PWA icons and favicon assets
-│   │   ├── magpie-main.png # Main logo
-│   │   └── magpie-square-icon.png # Square icon for toasts
 │   └── js/            # Frontend JavaScript
-│       ├── api.js     # API communication layer
-│       ├── app.js     # Main application logic
-│       ├── camera-ocr.js # Camera and OCR functionality
-│       └── db.js      # IndexedDB offline storage
+├── scripts/database/   # Database seeding and management
 ├── Dockerfile          # Docker containerization
 ├── firebase.json       # Firebase hosting configuration
 ├── firestore.rules     # Firestore security rules
-├── .dockerignore      # Docker ignore patterns
-├── .firebaserc        # Firebase project configuration (local dev only)
-├── .nvmrc             # Node.js version specification
 ├── package.json        # Dependencies and scripts
 ├── tsconfig.json       # TypeScript configuration
-├── jest.config.js      # Jest test configuration
-├── .prettierrc         # Prettier formatting rules
-├── .eslintrc.json      # ESLint linting rules
-├── .env.example        # Environment template
-└── README.md          # This file
+└── .env.example        # Environment template
 ```
 
 ## 🧪 Testing
 
-The project includes comprehensive unit tests for both API and application layers with **50 test cases** and **95%+ coverage**.
+The project includes comprehensive unit tests for both API and application layers with **98 test cases** and **95%+ coverage**.
 
 ### Test Architecture
 
@@ -238,8 +228,12 @@ The project includes comprehensive unit tests for both API and application layer
 tests/
 ├── setup.ts              # Test environment configuration
 ├── mocks.ts              # Mock implementations for testing
-├── book.usecase.test.ts   # Application layer tests (28 tests)
-└── book.controller.test.ts # API layer tests (22 tests)
+├── book.usecase.test.ts   # Book business logic tests
+├── book.controller.test.ts # Book API endpoint tests
+├── auth.usecase.test.ts   # Authentication business logic tests
+├── auth.api.test.ts       # Authentication API endpoint tests
+├── auth.infrastructure.test.ts # OAuth and repository tests
+└── health.endpoint.test.ts # Health check endpoint tests
 ```
 
 ### Running Tests
@@ -265,13 +259,14 @@ npm run check:all
 
 | Layer                     | Coverage | Details                                   |
 | ------------------------- | -------- | ----------------------------------------- |
-| **API Controller**        | 94.84%   | All endpoints, validation, error handling |
-| **Application Use Cases** | 97.36%   | Business logic, edge cases, validation    |
+| **API Controllers**       | 94%+     | All endpoints, validation, error handling |
+| **Application Use Cases** | 97%+     | Business logic, edge cases, validation    |
+| **Infrastructure**        | 95%+     | Repository, OAuth, external services      |
 | **Overall**               | 95%+     | Comprehensive test coverage               |
 
 ### What's Tested
 
-#### Application Layer (`book.usecase.test.ts`)
+#### Book Management
 
 - ✅ **Book Creation** - Valid data, duplicates, validation
 - ✅ **Book Retrieval** - By ISBN, pagination, filtering
@@ -281,17 +276,29 @@ npm run check:all
 - ✅ **External API Integration** - Mock external book data
 - ✅ **Favourite Management** - Toggle favourite status
 - ✅ **Loan Tracking** - Update loan status and metadata
+- ✅ **Book Sharing** - Share with users, remove access
+- ✅ **Ownership Validation** - User permissions and access control
 
-#### API Layer (`book.controller.test.ts`)
+#### Authentication & User Management
 
-- ✅ **REST Endpoints** - All CRUD operations
+- ✅ **OAuth Integration** - Google OAuth flow, token validation
+- ✅ **User Registration** - New user creation from OAuth
+- ✅ **User Authentication** - Login, logout, session management
+- ✅ **Token Management** - JWT creation, validation, refresh
+- ✅ **User Profile** - Profile retrieval and updates
+- ✅ **Authorization** - API endpoint protection and user context
+- ✅ **Repository Operations** - User CRUD operations in Firestore
+- ✅ **Error Handling** - OAuth failures, invalid tokens, unauthorized access
+
+#### API Endpoints
+
+- ✅ **REST Operations** - All CRUD endpoints for books and auth
 - ✅ **HTTP Status Codes** - Proper status code responses
 - ✅ **Request Validation** - Zod schema validation
-- ✅ **Error Handling** - 400, 404, 409, 500 responses
+- ✅ **Error Responses** - 400, 401, 403, 404, 409, 500 handling
 - ✅ **Query Parameters** - Filtering, sorting, pagination
-- ✅ **JSON Responses** - Proper response format
-- ✅ **Search API** - Query parameter validation
-- ✅ **External API** - Third-party book data fetching
+- ✅ **Authentication Headers** - Bearer token validation
+- ✅ **JSON Responses** - Proper response format and structure
 
 ### Test Examples
 
@@ -299,8 +306,12 @@ npm run check:all
 # Example test output
 ✓ BookUseCase > createBook > should create a book successfully
 ✓ BookUseCase > getAllBooks > should filter by genre
+✓ AuthUseCase > authenticateUser > should validate OAuth token
+✓ AuthUseCase > getUserProfile > should return user information
 ✓ BookController API > GET /api/books > should return all books
 ✓ BookController API > POST /api/books > should create a new book
+✓ AuthController API > POST /api/auth/login > should initiate OAuth flow
+✓ AuthController API > GET /api/auth/me > should return user profile
 ```
 
 ### Integration Testing
@@ -311,12 +322,21 @@ Test API endpoints manually:
 # Health check
 curl http://localhost:3000/api/health
 
-# Get all books
-curl http://localhost:3000/api/books
+# Authentication (requires Google OAuth setup)
+curl http://localhost:3000/api/auth/login
 
-# Create a book
+# Get current user (requires authentication)
+curl -H "Authorization: Bearer YOUR_TOKEN" \
+  http://localhost:3000/api/auth/me
+
+# Get user's books (requires authentication)
+curl -H "Authorization: Bearer YOUR_TOKEN" \
+  http://localhost:3000/api/books
+
+# Create a book (requires authentication)
 curl -X POST http://localhost:3000/api/books \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
   -d '{
     "isbn": "9781234567890",
     "title": "Test Book",
@@ -326,8 +346,36 @@ curl -X POST http://localhost:3000/api/books \
     "type": "reference"
   }'
 
-# Search books
-curl "http://localhost:3000/api/search?q=typescript"
+# Search books (requires authentication)
+curl -H "Authorization: Bearer YOUR_TOKEN" \
+  "http://localhost:3000/api/search?q=typescript"
+
+# Share a book (requires authentication and ownership)
+curl -X POST http://localhost:3000/api/books/9781234567890/share \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d '{
+    "userIds": ["user2@example.com", "user3@example.com"]
+  }'
+
+# Toggle favorite status (requires authentication)
+curl -X PUT http://localhost:3000/api/books/9781234567890/favourite \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# Update loan status (requires authentication)
+curl -X PUT http://localhost:3000/api/books/9781234567890/loan \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d '{
+    "loanStatus": "loaned",
+    "borrower": "friend@example.com",
+    "loanDate": "2023-09-15",
+    "dueDate": "2023-10-15"
+  }'
+
+# Remove user access from shared book (requires authentication and ownership)
+curl -X DELETE http://localhost:3000/api/books/9781234567890/users/user2@example.com \
+  -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
 ## 🚢 Deployment
