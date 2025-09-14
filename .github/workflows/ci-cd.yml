@@ -149,6 +149,12 @@ jobs:
           window.ENVIRONMENT = 'development';
           window.BUILD_DATE = '$(date -Iseconds)';
           EOF
+          
+          # Update manifest.json for development environment
+          sed -i 's/"name": "Magpie Book Collection"/"name": "Magpie Book Collection (DEV)"/g' manifest.json
+          sed -i 's/"short_name": "Magpie"/"short_name": "Magpie DEV"/g' manifest.json
+          sed -i 's/"theme_color": "#667eea"/"theme_color": "#f97316"/g' manifest.json
+          sed -i 's/"description": "Your personal book collection manager with offline support"/"description": "Your personal book collection manager with offline support - Development Version"/g' manifest.json
 
       - name: 🚀 Deploy Frontend to Firebase
         env:
