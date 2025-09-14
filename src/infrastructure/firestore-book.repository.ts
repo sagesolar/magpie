@@ -43,14 +43,12 @@ export class FirestoreBookRepository implements BookRepository {
       admin.initializeApp(config);
     }
 
-    // Use specific database if provided
+    // Get Firestore instance - for now, use default until we can properly configure named databases
+    this.db = admin.firestore();
+    
+    // Log the database configuration for debugging
     const dbId = databaseId || process.env.FIRESTORE_DATABASE_ID || '(default)';
-    if (dbId === '(default)') {
-      this.db = admin.firestore();
-    } else {
-      this.db = admin.firestore();
-      this.db.settings({ databaseId: dbId });
-    }
+    console.log(`Firestore configuration - Database ID: ${dbId}, Project: ${projectId || process.env.GOOGLE_CLOUD_PROJECT_ID}`);
 
     this.collection = this.db.collection('books');
 
