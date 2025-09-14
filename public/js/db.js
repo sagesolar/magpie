@@ -161,11 +161,15 @@ class BookDB {
   async getUnsyncedChanges() {
     const transaction = this.getTransaction(['changes']);
     const store = transaction.objectStore('changes');
-    const index = store.index('synced');
 
     return new Promise((resolve, reject) => {
-      const request = index.getAll(false);
-      request.onsuccess = () => resolve(request.result);
+      const request = store.getAll();
+      request.onsuccess = () => {
+        // Filter unsynced changes in memory since IndexedDB boolean indexing is problematic
+        const allChanges = request.result;
+        const unsyncedChanges = allChanges.filter(change => change.synced === false);
+        resolve(unsyncedChanges);
+      };
       request.onerror = () => reject(request.error);
     });
   }

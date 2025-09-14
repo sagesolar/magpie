@@ -1,4 +1,6 @@
 // API service for communication with backend
+import { bookDB } from './db.js';
+
 class APIService {
   constructor() {
     // Use window.API_BASE_URL from config.js or fallback to relative path for development
@@ -141,12 +143,14 @@ class APIService {
       // Clean up synced changes
       await bookDB.clearSyncedChanges();
 
-      // Dispatch sync complete event
-      window.dispatchEvent(
-        new CustomEvent('syncComplete', {
-          detail: { syncedCount: changes.length },
-        })
-      );
+      // Only dispatch sync complete event if there were changes to sync
+      if (changes.length > 0) {
+        window.dispatchEvent(
+          new CustomEvent('syncComplete', {
+            detail: { syncedCount: changes.length },
+          })
+        );
+      }
     } catch (error) {
       console.error('Sync failed:', error);
     }
