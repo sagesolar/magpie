@@ -7,7 +7,6 @@ import {
   FieldValue,
   Query,
 } from '@google-cloud/firestore';
-import * as admin from 'firebase-admin';
 import {
   Book,
   CreateBookDto,
@@ -26,13 +25,13 @@ export class FirestoreBookRepository implements BookRepository {
   constructor(projectId?: string, serviceAccountPath?: string, databaseId?: string) {
     const dbId = databaseId || process.env.FIRESTORE_DATABASE_ID || '(default)';
     const project = projectId || process.env.GOOGLE_CLOUD_PROJECT_ID;
-    
+
     console.log(`Connecting to Firestore - Project: ${project}, Database: ${dbId}`);
 
     // Use @google-cloud/firestore directly for named database support
     this.db = new Firestore({
       projectId: project,
-      databaseId: dbId
+      databaseId: dbId,
     });
 
     this.collection = this.db.collection('books');

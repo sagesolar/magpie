@@ -78,7 +78,7 @@ The Magpie Book Collection System has been successfully created with full CI/CD 
 - **Firestore Integration**: Native Firestore database with TypeScript models and repositories
 - **Database Setup Scripts**: Automated database configuration and metadata setup
 - **Seeding Scripts**: Database seeding with sample book data for development and testing
-- **NPM Scripts**: 
+- **NPM Scripts**:
   - `npm run db:setup` - Initialize database metadata and configuration
   - `npm run db:seed` - Populate database with sample book collection data
 - **Development Data**: Sample books with various genres, authors, and metadata for testing
@@ -158,6 +158,7 @@ The Magpie Book Collection System has been successfully created with full CI/CD 
 ### Infrastructure Requirements
 
 To replicate this setup in new environments:
+
 1. **Enable Required APIs**: Artifact Registry, Cloud Run, Cloud Build, Firebase, Firebase Hosting, Firestore, IAM, Cloud Resource Manager
 2. **Create Artifact Registry**: Docker repository in target region for container storage
 3. **Configure Service Accounts**: GitHub Actions service account with Artifact Registry writer, Cloud Run admin, Storage admin, and Service Account user roles
