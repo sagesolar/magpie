@@ -121,7 +121,7 @@ jobs:
             --platform managed \
             --region ${{ secrets.CLOUD_RUN_REGION }} \
             --allow-unauthenticated \
-            --set-env-vars "NODE_ENV=production,GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID_DEV }},FIRESTORE_DATABASE_ID=${{ secrets.FIRESTORE_DATABASE_ID_DEV }},APP_VERSION=$VERSION_DATE,BUILD_NUMBER=$BUILD_NUMBER,BUILD_DATE=$BUILD_DATE,ENVIRONMENT=development" \
+            --set-env-vars "NODE_ENV=production,GOOGLE_CLOUD_PROJECT_ID=${{ secrets.GCP_PROJECT_ID_DEV }},FIRESTORE_DATABASE_ID=${{ secrets.FIRESTORE_DATABASE_ID_DEV }},GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID_DEV }},GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET_DEV }},OAUTH_REDIRECT_URI=${{ secrets.OAUTH_REDIRECT_URI_DEV }},APP_VERSION=$VERSION_DATE,BUILD_NUMBER=$BUILD_NUMBER,BUILD_DATE=$BUILD_DATE,ENVIRONMENT=development" \
             --memory 1Gi \
             --cpu 1 \
             --min-instances 0 \
@@ -253,7 +253,7 @@ jobs:
             --platform managed \
             --region ${{ secrets.CLOUD_RUN_REGION }} \
             --allow-unauthenticated \
-            --set-env-vars "NODE_ENV=production,GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID_PROD }},FIRESTORE_DATABASE_ID=${{ secrets.FIRESTORE_DATABASE_ID_PROD }},APP_VERSION=$VERSION_DATE,BUILD_NUMBER=$BUILD_NUMBER,BUILD_DATE=$BUILD_DATE,ENVIRONMENT=production" \
+            --set-env-vars "NODE_ENV=production,GOOGLE_CLOUD_PROJECT_ID=${{ secrets.GCP_PROJECT_ID_PROD }},FIRESTORE_DATABASE_ID=${{ secrets.FIRESTORE_DATABASE_ID_PROD }},GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID_PROD }},GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET_PROD }},OAUTH_REDIRECT_URI=${{ secrets.OAUTH_REDIRECT_URI_PROD }},APP_VERSION=$VERSION_DATE,BUILD_NUMBER=$BUILD_NUMBER,BUILD_DATE=$BUILD_DATE,ENVIRONMENT=production" \
             --memory 1Gi \
             --cpu 1 \
             --min-instances 0 \
