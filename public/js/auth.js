@@ -24,7 +24,17 @@ class MagpieAuth {
   // Helper method to get the proper API URL
   getApiUrl(endpoint) {
     const backendUrl = window.magpieConfig?.apiBaseUrl || window.API_BASE_URL || '';
-    return backendUrl ? `${backendUrl}${endpoint}` : endpoint;
+    const finalUrl = backendUrl ? `${backendUrl}${endpoint}` : endpoint;
+    
+    // Debug logging to help troubleshoot deployed version
+    console.log('API URL Debug:', {
+      endpoint,
+      'window.API_BASE_URL': window.API_BASE_URL,
+      'window.magpieConfig?.apiBaseUrl': window.magpieConfig?.apiBaseUrl,
+      'Final URL': finalUrl
+    });
+    
+    return finalUrl;
   }
 
   // Initialize Google OIDC

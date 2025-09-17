@@ -7,7 +7,13 @@ class APIService {
     this.baseUrl = (window.API_BASE_URL || '') + '/api';
     this.isOnline = navigator.onLine;
 
-    console.log('API Base URL:', this.baseUrl);
+    // Enhanced debugging for deployed version
+    console.log('APIService Debug:', {
+      'window.API_BASE_URL': window.API_BASE_URL,
+      'window.magpieConfig': window.magpieConfig,
+      'Final baseUrl': this.baseUrl,
+      'Current location': window.location.href
+    });
 
     // Listen for online/offline events
     window.addEventListener('online', () => {
