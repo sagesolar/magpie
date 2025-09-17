@@ -9,13 +9,13 @@ export function createBookRoutes(
 ): Router {
   const router = Router();
 
-  // Public routes (no authentication required)
-  router.get('/books', authMiddleware.extractContext(), bookController.getAllBooks);
-  router.get('/books/:isbn', authMiddleware.extractContext(), bookController.getBookByIsbn);
-  router.get('/search', authMiddleware.extractContext(), bookController.searchBooks);
+  // Protected read routes (require authentication for user book data)
+  router.get('/books', authMiddleware.requireAuth(), bookController.getAllBooks);
+  router.get('/books/:isbn', authMiddleware.requireAuth(), bookController.getBookByIsbn);
+  router.get('/search', authMiddleware.requireAuth(), bookController.searchBooks);
   router.get(
     '/external/:isbn',
-    authMiddleware.extractContext(),
+    authMiddleware.requireAuth(),
     bookController.fetchExternalBookData
   );
 
