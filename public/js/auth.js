@@ -109,6 +109,9 @@ class MagpieAuth {
       // Store user data and token
       this.storeAuthData(result.token, result.user);
 
+      // Close any open login modal
+      this.closeLoginModal();
+
       // Trigger login success event
       this.triggerLoginEvent(result.user);
 
@@ -192,6 +195,15 @@ class MagpieAuth {
 
     // Add to page
     document.body.appendChild(modal);
+  }
+
+  // Close login modal if it's open
+  closeLoginModal() {
+    const modal = document.querySelector('.login-modal');
+    if (modal) {
+      document.body.removeChild(modal);
+      console.log('Login modal closed automatically after successful login');
+    }
   }
 
   // Store authentication data securely
