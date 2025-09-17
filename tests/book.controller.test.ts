@@ -90,7 +90,9 @@ describe('BookController API', () => {
     });
 
     it('should return all books', async () => {
-      const response = await request(app).get('/api/books');
+      const response = await request(app)
+        .get('/api/books')
+        .set('Authorization', 'Bearer valid-token');
 
       expect(response.status).toBe(200);
       expect(response.body.data).toHaveLength(2);
@@ -100,14 +102,16 @@ describe('BookController API', () => {
     });
 
     it('should filter by genre', async () => {
-      const response = await request(app).get('/api/books?genre=Programming');
+      const response = await request(app)
+        .get('/api/books?genre=Programming')
+        .set('Authorization', 'Bearer valid-token');
 
       expect(response.status).toBe(200);
       expect(response.body.data).toHaveLength(2);
     });
 
     it('should filter by type', async () => {
-      const response = await request(app).get('/api/books?type=personal');
+      const response = await request(app).get('/api/books?type=personal').set('Authorization', 'Bearer valid-token');
 
       expect(response.status).toBe(200);
       expect(response.body.data).toHaveLength(1);
@@ -115,7 +119,7 @@ describe('BookController API', () => {
     });
 
     it('should filter by favourite status', async () => {
-      const response = await request(app).get('/api/books?isFavourite=true');
+      const response = await request(app).get('/api/books?isFavourite=true').set('Authorization', 'Bearer valid-token');
 
       expect(response.status).toBe(200);
       expect(response.body.data).toHaveLength(1);
@@ -123,7 +127,7 @@ describe('BookController API', () => {
     });
 
     it('should apply pagination', async () => {
-      const response = await request(app).get('/api/books?page=1&limit=1');
+      const response = await request(app).get('/api/books?page=1&limit=1').set('Authorization', 'Bearer valid-token');
 
       expect(response.status).toBe(200);
       expect(response.body.data).toHaveLength(1);
@@ -133,7 +137,7 @@ describe('BookController API', () => {
     });
 
     it('should sort books', async () => {
-      const response = await request(app).get('/api/books?sortField=title&sortDirection=desc');
+      const response = await request(app).get('/api/books?sortField=title&sortDirection=desc').set('Authorization', 'Bearer valid-token');
 
       expect(response.status).toBe(200);
       expect(response.body.data[0].title).toBe('Python Basics');
@@ -157,7 +161,7 @@ describe('BookController API', () => {
     });
 
     it('should return book by ISBN', async () => {
-      const response = await request(app).get('/api/books/1111111111111');
+      const response = await request(app).get('/api/books/1111111111111').set('Authorization', 'Bearer valid-token');
 
       expect(response.status).toBe(200);
       expect(response.body.isbn).toBe('1111111111111');
@@ -165,14 +169,14 @@ describe('BookController API', () => {
     });
 
     it('should return 404 for non-existent book', async () => {
-      const response = await request(app).get('/api/books/9999999999999');
+      const response = await request(app).get('/api/books/9999999999999').set('Authorization', 'Bearer valid-token');
 
       expect(response.status).toBe(404);
       expect(response.body.error).toBe('Book not found');
     });
 
     it('should return 400 for invalid ISBN', async () => {
-      const response = await request(app).get('/api/books/invalid');
+      const response = await request(app).get('/api/books/invalid').set('Authorization', 'Bearer valid-token');
 
       expect(response.status).toBe(400);
     });
@@ -317,7 +321,7 @@ describe('BookController API', () => {
     });
 
     it('should search books', async () => {
-      const response = await request(app).get('/api/search?q=JavaScript');
+      const response = await request(app).get('/api/search?q=JavaScript').set('Authorization', 'Bearer valid-token');
 
       expect(response.status).toBe(200);
       expect(response.body).toHaveLength(1);
@@ -325,7 +329,7 @@ describe('BookController API', () => {
     });
 
     it('should return 400 for missing query', async () => {
-      const response = await request(app).get('/api/search');
+      const response = await request(app).get('/api/search').set('Authorization', 'Bearer valid-token');
 
       expect(response.status).toBe(400);
       expect(response.body.error).toBe('Query parameter "q" is required');
@@ -334,14 +338,14 @@ describe('BookController API', () => {
 
   describe('GET /api/external/:isbn', () => {
     it('should fetch external book data', async () => {
-      const response = await request(app).get('/api/external/9780134685991');
+      const response = await request(app).get('/api/external/9780134685991').set('Authorization', 'Bearer valid-token');
 
       expect(response.status).toBe(200);
       expect(response.body.title).toBe('Effective TypeScript');
     });
 
     it('should return 404 for unknown ISBN', async () => {
-      const response = await request(app).get('/api/external/9999999999999');
+      const response = await request(app).get('/api/external/9999999999999').set('Authorization', 'Bearer valid-token');
 
       expect(response.status).toBe(404);
       expect(response.body.error).toBe('Book data not found in external sources');
