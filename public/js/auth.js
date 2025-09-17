@@ -21,6 +21,12 @@ class MagpieAuth {
     }
   }
 
+  // Helper method to get the proper API URL
+  getApiUrl(endpoint) {
+    const backendUrl = window.magpieConfig?.apiBaseUrl || window.API_BASE_URL || '';
+    return backendUrl ? `${backendUrl}${endpoint}` : endpoint;
+  }
+
   // Initialize Google OIDC
   async initialize() {
     if (this.isInitialized) return;
@@ -68,8 +74,12 @@ class MagpieAuth {
     try {
       console.log('Received credential response');
 
+      // Get the backend URL from configuration
+      const loginUrl = this.getApiUrl('/api/auth/login');
+      console.log('Sending login request to:', loginUrl);
+
       // Send ID token to backend for validation
-      const loginResponse = await fetch('/api/auth/login', {
+      const loginResponse = await fetch(loginUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -231,7 +241,7 @@ class MagpieAuth {
   async logout() {
     try {
       // Call backend logout (optional)
-      await fetch('/api/auth/logout', {
+      await fetch(this.getApiUrl('/api/auth/logout'), {
         method: 'POST',
         headers: this.getAuthHeader(),
       });
@@ -253,7 +263,7 @@ class MagpieAuth {
     if (!this.isAuthenticated()) return false;
 
     try {
-      const response = await fetch('/api/auth/validate', {
+      const response = await fetch(this.getApiUrl('/api/auth/validate'), {
         method: 'POST',
         headers: this.getAuthHeader(),
       });
