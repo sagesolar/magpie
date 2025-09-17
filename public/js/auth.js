@@ -9,8 +9,15 @@ class MagpieAuth {
     this.userKey = 'magpie_user_data';
     this.isInitialized = false;
 
+    // Debug logging
+    console.log('MagpieAuth initialized with:');
+    console.log('- Client ID:', this.clientId);
+    console.log('- magpieConfig:', window.magpieConfig);
+
     if (!this.clientId) {
       console.error('Google Client ID not configured. Please update config.js');
+      console.error('Expected: window.magpieConfig.googleClientId');
+      console.error('Available:', Object.keys(window.magpieConfig || {}));
     }
   }
 
@@ -167,18 +174,31 @@ class MagpieAuth {
     document.body.appendChild(modal);
   }
 
-  // Store authentication data
+  // Store authentication data securely
   storeAuthData(token, user) {
-    localStorage.setItem(this.tokenKey, token);
-    localStorage.setItem(this.userKey, JSON.stringify(user));
+    // Use sessionStorage instead of localStorage for better security
+    // sessionStorage is cleared when tab closes, reducing attack window
+    sessionStorage.setItem(this.tokenKey, token);
+    sessionStorage.setItem(this.userKey, JSON.stringify(user));
+    
+    // Set expiration timestamp - 30 days
+    const expiresAt = Date.now() + (30 * 24 * 60 * 60 * 1000); // 30 days
+    sessionStorage.setItem(this.tokenKey + '_expires', expiresAt.toString());
   }
 
   // Get stored authentication data
   getStoredAuth() {
-    const token = localStorage.getItem(this.tokenKey);
-    const userStr = localStorage.getItem(this.userKey);
+    const token = sessionStorage.getItem(this.tokenKey);
+    const userStr = sessionStorage.getItem(this.userKey);
+    const expiresAtStr = sessionStorage.getItem(this.tokenKey + '_expires');
+    
+    // Check if token is expired
+    if (expiresAtStr && Date.now() > parseInt(expiresAtStr)) {
+      this.clearAuthData();
+      return { token: null, user: null };
+    }
+    
     const user = userStr ? JSON.parse(userStr) : null;
-
     return { token, user };
   }
 
@@ -200,6 +220,13 @@ class MagpieAuth {
     return token ? { Authorization: `Bearer ${token}` } : {};
   }
 
+  // Clear authentication data
+  clearAuthData() {
+    sessionStorage.removeItem(this.tokenKey);
+    sessionStorage.removeItem(this.userKey);
+    sessionStorage.removeItem(this.tokenKey + '_expires');
+  }
+
   // Logout
   async logout() {
     try {
@@ -211,9 +238,8 @@ class MagpieAuth {
     } catch (error) {
       console.warn('Backend logout failed:', error);
     } finally {
-      // Clear local storage
-      localStorage.removeItem(this.tokenKey);
-      localStorage.removeItem(this.userKey);
+      // Clear stored data
+      this.clearAuthData();
 
       // Trigger logout event
       this.triggerLogoutEvent();

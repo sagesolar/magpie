@@ -152,6 +152,12 @@ jobs:
           window.BUILD_NUMBER = '$BUILD_NUMBER';
           window.ENVIRONMENT = 'development';
           window.BUILD_DATE = '$(date -Iseconds)';
+          
+          // Google OAuth Configuration
+          window.magpieConfig = {
+            apiBaseUrl: '$BACKEND_URL',
+            googleClientId: '${{ secrets.GOOGLE_CLIENT_ID_DEV }}'
+          };
           EOF
 
           # Update manifest.json for development environment
@@ -284,6 +290,12 @@ jobs:
           window.BUILD_NUMBER = '$BUILD_NUMBER';
           window.ENVIRONMENT = 'production';
           window.BUILD_DATE = '$(date -Iseconds)';
+          
+          // Google OAuth Configuration
+          window.magpieConfig = {
+            apiBaseUrl: '$BACKEND_URL',
+            googleClientId: '${{ secrets.GOOGLE_CLIENT_ID_PROD }}'
+          };
           EOF
 
       - name: 🚀 Deploy Frontend to Firebase

@@ -6,3 +6,9 @@ window.APP_VERSION = '2025.09.14';
 window.BUILD_NUMBER = '42';
 window.ENVIRONMENT = 'development';
 window.BUILD_DATE = '2025-09-14T15:30:45Z';
+
+// Google OAuth Configuration
+window.magpieConfig = {
+  apiBaseUrl: window.API_BASE_URL,
+  googleClientId: '384412525793-v6f83671os0jr923u2cpbchsev4oenj3.apps.googleusercontent.com'
+};
