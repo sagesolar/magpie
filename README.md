@@ -32,6 +32,60 @@ A modern, full-stack book collection management system built with clean architec
 - **Background Sync**: Auto-sync changes when back online
 - **Mobile-First**: Responsive design optimized for all devices
 - **App-like Experience**: Install on device home screen
+- **Cross-Platform**: Works on desktop, tablet, and mobile
+
+### 🔐 Authentication & User Management
+
+- **Google OAuth Integration**: Secure login with Google accounts using OpenID Connect
+- **Personal Collections**: Each user has their own private book collection
+- **Data Privacy**: Books are private to users with optional controlled sharing
+- **Session Management**: Secure authentication with automatic session handling
+- **Profile Integration**: User profile and avatar from Google account
+
+### 🔄 Advanced Offline Mode
+
+Magpie features a robust offline-first architecture that ensures seamless functionality even in areas with poor connectivity:
+
+#### 📱 Persistent Authentication
+
+- **Offline User Identity**: User authentication persists across connectivity loss and browser sessions
+- **Smart Token Management**: Gracefully handles expired tokens while maintaining offline functionality
+- **Session Resilience**: Continue using the app after initial login, even if authentication servers are unavailable
+
+#### 💾 Intelligent Data Sync
+
+- **Local-First Storage**: All book operations work immediately using IndexedDB for local storage
+- **Change Tracking**: Automatically tracks all Create, Update, and Delete operations performed offline
+- **Conflict Resolution**: Smart handling of data conflicts when reconnecting to the server
+
+#### 🔍 User-Controlled Synchronization
+
+- **No Auto-Sync**: Changes are never automatically pushed to the server without user confirmation
+- **Sync Notifications**: Visual badge on sync button shows count of pending offline changes
+- **Change Review**: Comprehensive review interface shows exactly what will be synchronized:
+  - 📚 **Books to Create**: New books added while offline
+  - ✏️ **Books to Update**: Modified book details, favorites, read status
+  - 🗑️ **Books to Delete**: Books removed from collection
+- **Detailed Change History**: View timestamps, affected books, and change summaries
+- **Book Details Preview**: Inspect individual book changes before confirming sync
+- **One-Click Confirmation**: Review all changes and sync with single user confirmation
+
+#### 🎯 Offline Capabilities
+
+- **Full CRUD Operations**: Add, edit, delete, and organize books completely offline
+- **Search & Filter**: Search your book collection and apply filters without connectivity
+- **Favorites & Reading Status**: Mark books as favorites or read/unread offline
+- **Book Details**: Access and modify all book metadata and personal notes
+- **Visual Feedback**: Clear offline mode indicators and sync status throughout the UI
+
+#### 🔄 Smart Reconnection
+
+- **Automatic Detection**: Detects when connectivity is restored
+- **Pending Changes Badge**: Prominent notification when changes are ready to sync
+- **Error Handling**: Graceful failure handling with retry options for sync operations
+- **Data Integrity**: Ensures no data loss during the offline-to-online transition
+
+This offline-first approach ensures that users can fully manage their book collections regardless of connectivity, making Magpie perfect for use in bookshops, libraries, basements, or anywhere with intermittent internet access.
 
 ## 🚀 Quick Start
 
@@ -39,6 +93,7 @@ A modern, full-stack book collection management system built with clean architec
 
 - Node.js 20+ (LTS)
 - npm 9+
+- Google OAuth credentials (see setup guide in docs/)
 
 ### Installation
 
@@ -57,84 +112,51 @@ A modern, full-stack book collection management system built with clean architec
    # Edit .env with your configuration
    ```
 
-   > **Windows Users**: For CI/CD setup and additional tooling, run `.\scripts\setup-windows.ps1` in PowerShell to validate prerequisites and get setup guidance.
-
-3. **Build the project**:
+3. **Build and start**:
 
    ```bash
    npm run build
-   ```
-
-4. **Start the server**:
-
-   ```bash
    npm start
    ```
 
-   For development with auto-reload:
+   For development:
 
    ```bash
    npm run dev
    ```
 
-5. **Open your browser**:
+4. **Access the application**:
    - PWA: http://localhost:3000
-   - API: http://localhost:3000/api
-   - Health Check: http://localhost:3000/health
+   - API Health: http://localhost:3000/api/health
 
-## 📋 API Endpoints
+> For detailed setup instructions including Google OAuth configuration, see the [documentation](docs/).
 
-### Books
+## 📋 API Overview
 
-- `GET /api/books` - Get all books (with filtering, sorting, pagination)
-- `GET /api/books/:isbn` - Get book by ISBN
-- `POST /api/books` - Create new book
-- `PUT /api/books/:isbn` - Update book
-- `DELETE /api/books/:isbn` - Delete book
+### Main Endpoints
 
-### Search
+- **Authentication**: OAuth login, user profile, session management
+- **Books**: CRUD operations, search, filtering, pagination
+- **Sharing**: Book sharing and access control
+- **External Data**: Fetch book metadata from external sources
 
-- `GET /api/search?q=query` - Search books by title, author, or ISBN
-
-### External Data
-
-- `GET /api/external/:isbn` - Fetch book data from external APIs
-
-### Special Operations
-
-- `PUT /api/books/:isbn/favourite` - Toggle favorite status
-- `PUT /api/books/:isbn/loan` - Update loan status
-
-### System
-
-- `GET /api/health` - Health check
+> For complete API documentation and examples, see the [API documentation](docs/).
 
 ## 🔧 Configuration
 
 ### Environment Variables
 
-```env
-# Server Configuration
-PORT=3000
-NODE_ENV=development
+See `.env.example` for required configuration variables. 
 
-# Google Cloud Firestore Configuration
-GOOGLE_CLOUD_PROJECT_ID=your-project-id
-GOOGLE_APPLICATION_CREDENTIALS=path/to/service-account.json
+**Security Note**: Never commit actual credentials or sensitive configuration to version control.
 
-# CORS Configuration
-ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8080
-```
+> For detailed configuration instructions, see the [setup documentation](docs/).
 
 ### Database
 
-The system uses **Google Cloud Firestore** as its NoSQL document database, providing:
+The system uses Google Cloud Firestore as its NoSQL document database.
 
-- **Scalability**: Automatically scales based on demand
-- **Real-time updates**: Live synchronization across clients
-- **Offline support**: Built-in offline capabilities
-- **Security**: Fine-grained security rules
-- **Global distribution**: Multi-region data replication
+> For database setup and configuration details, see [Firestore Setup Guide](docs/FIRESTORE_SETUP.md).
 
 ## 🛠️ Development
 
@@ -158,177 +180,61 @@ The system uses **Google Cloud Firestore** as its NoSQL document database, provi
 
 ```
 magpie/
-├── .github/            # GitHub Actions workflows
-│   ├── workflows/      # CI/CD pipeline definitions
-├── docs/               # Documentation
-│   ├── CI_CD_SETUP.md  # CI/CD setup guide
-│   ├── DEPLOYMENT.md   # Deployment instructions
-│   ├── FIRESTORE_SETUP.md # Database setup guide
-│   └── SECURITY.md     # Security guidelines
-├── scripts/            # Setup and utility scripts
-│   ├── seed-database.ps1       # PowerShell database seeding script
-│   ├── view-database.ps1       # PowerShell database viewing script
-│   └── database/       # Database management scripts
-│       ├── check-database.js   # Database validation script
-│       ├── seed-data.json      # Sample data for seeding
-│       ├── seed-firestore.js   # Firestore seeding script
-│       ├── setup-metadata.js  # Database metadata initialization
-│       └── view-database.js    # Database viewing utility
-├── src/                # Source code
+├── .github/workflows/  # CI/CD pipeline definitions
+├── docs/               # Documentation guides
+├── src/                # Backend source code
 │   ├── api/            # REST API controllers and routes
 │   ├── application/    # Use cases and business logic
 │   ├── domain/         # Business entities and types
 │   ├── infrastructure/ # External services and data access
-│   ├── utils/          # Utility functions and helpers
+│   ├── utils/          # Utility functions
 │   └── server.ts       # Application entry point
-├── tests/              # Unit tests
-│   ├── setup.ts        # Test configuration
-│   ├── mocks.ts        # Mock implementations
-│   ├── book.usecase.test.ts    # Application layer tests
-│   └── book.controller.test.ts # API layer tests
-├── public/             # PWA static files
+├── tests/              # Unit tests and mocks
+├── public/             # PWA frontend
 │   ├── index.html      # Main PWA interface
 │   ├── manifest.json   # PWA manifest
 │   ├── sw.js          # Service worker
-│   ├── vite.config.js # Vite build configuration
-│   ├── package.json   # Frontend dependencies
 │   ├── styles/        # CSS files
-│   │   ├── main.css   # Main layout and theme
-│   │   ├── components.css # Reusable UI components
-│   │   ├── books.css  # Book-specific styling
-│   │   └── forms.css  # Form elements styling
-│   ├── images/        # Application images and icons
-│   │   ├── favicons/  # PWA icons and favicon assets
-│   │   ├── magpie-main.png # Main logo
-│   │   └── magpie-square-icon.png # Square icon for toasts
 │   └── js/            # Frontend JavaScript
-│       ├── api.js     # API communication layer
+│       ├── api.js     # API service layer
 │       ├── app.js     # Main application logic
-│       ├── camera-ocr.js # Camera and OCR functionality
-│       └── db.js      # IndexedDB offline storage
+│       ├── auth.js    # Authentication service
+│       ├── db.js      # IndexedDB offline storage
+│       └── camera-ocr.js # Camera/OCR functionality
+├── scripts/database/   # Database seeding and management
 ├── Dockerfile          # Docker containerization
 ├── firebase.json       # Firebase hosting configuration
 ├── firestore.rules     # Firestore security rules
-├── .dockerignore      # Docker ignore patterns
-├── .firebaserc        # Firebase project configuration (local dev only)
-├── .nvmrc             # Node.js version specification
 ├── package.json        # Dependencies and scripts
 ├── tsconfig.json       # TypeScript configuration
-├── jest.config.js      # Jest test configuration
-├── .prettierrc         # Prettier formatting rules
-├── .eslintrc.json      # ESLint linting rules
-├── .env.example        # Environment template
-└── README.md          # This file
+└── .env.example        # Environment template
 ```
+
+### 🔧 Offline Architecture
+
+Magpie uses an offline-first architecture with:
+
+- **IndexedDB Storage**: Local database for offline book management
+- **Service Worker**: Caches resources and enables offline functionality  
+- **Change Tracking**: Queues offline operations for later synchronization
+- **User-Controlled Sync**: Review and confirm changes before syncing to server
+
+> For technical implementation details, see [Technical Documentation](docs/).
 
 ## 🧪 Testing
 
-The project includes comprehensive unit tests for both API and application layers with **50 test cases** and **95%+ coverage**.
-
-### Test Architecture
-
-- **Jest** - Testing framework with TypeScript support
-- **Supertest** - HTTP assertion library for API testing
-- **Mock Implementations** - In-memory repository and external service mocks
-- **Coverage Reporting** - Detailed code coverage analysis
-
-### Test Structure
-
-```
-tests/
-├── setup.ts              # Test environment configuration
-├── mocks.ts              # Mock implementations for testing
-├── book.usecase.test.ts   # Application layer tests (28 tests)
-└── book.controller.test.ts # API layer tests (22 tests)
-```
+The project includes comprehensive unit tests with 95%+ coverage.
 
 ### Running Tests
 
 ```bash
-# Run all tests
-npm test
-
-# Run tests in watch mode (for development)
-npm run test:watch
-
-# Run tests with coverage report
-npm run test:coverage
-
-# Run tests for CI/CD
-npm run test:ci
-
-# Full code quality check (lint + format + test + build)
-npm run check:all
+npm test                 # Run all tests
+npm run test:watch       # Development watch mode
+npm run test:coverage    # Generate coverage report
+npm run test:ci          # CI-friendly test run
 ```
 
-### Test Coverage
-
-| Layer                     | Coverage | Details                                   |
-| ------------------------- | -------- | ----------------------------------------- |
-| **API Controller**        | 94.84%   | All endpoints, validation, error handling |
-| **Application Use Cases** | 97.36%   | Business logic, edge cases, validation    |
-| **Overall**               | 95%+     | Comprehensive test coverage               |
-
-### What's Tested
-
-#### Application Layer (`book.usecase.test.ts`)
-
-- ✅ **Book Creation** - Valid data, duplicates, validation
-- ✅ **Book Retrieval** - By ISBN, pagination, filtering
-- ✅ **Book Updates** - Partial updates, validation
-- ✅ **Book Deletion** - Success and error cases
-- ✅ **Search Functionality** - Title, author, ISBN search
-- ✅ **External API Integration** - Mock external book data
-- ✅ **Favourite Management** - Toggle favourite status
-- ✅ **Loan Tracking** - Update loan status and metadata
-
-#### API Layer (`book.controller.test.ts`)
-
-- ✅ **REST Endpoints** - All CRUD operations
-- ✅ **HTTP Status Codes** - Proper status code responses
-- ✅ **Request Validation** - Zod schema validation
-- ✅ **Error Handling** - 400, 404, 409, 500 responses
-- ✅ **Query Parameters** - Filtering, sorting, pagination
-- ✅ **JSON Responses** - Proper response format
-- ✅ **Search API** - Query parameter validation
-- ✅ **External API** - Third-party book data fetching
-
-### Test Examples
-
-```bash
-# Example test output
-✓ BookUseCase > createBook > should create a book successfully
-✓ BookUseCase > getAllBooks > should filter by genre
-✓ BookController API > GET /api/books > should return all books
-✓ BookController API > POST /api/books > should create a new book
-```
-
-### Integration Testing
-
-Test API endpoints manually:
-
-```bash
-# Health check
-curl http://localhost:3000/api/health
-
-# Get all books
-curl http://localhost:3000/api/books
-
-# Create a book
-curl -X POST http://localhost:3000/api/books \
-  -H "Content-Type: application/json" \
-  -d '{
-    "isbn": "9781234567890",
-    "title": "Test Book",
-    "authors": ["Test Author"],
-    "publisher": "Test Publisher",
-    "publishingYear": 2023,
-    "type": "reference"
-  }'
-
-# Search books
-curl "http://localhost:3000/api/search?q=typescript"
-```
+> For detailed testing information and examples, see [Testing Documentation](docs/).
 
 ## 🚢 Deployment
 
@@ -339,18 +245,7 @@ npm run build
 NODE_ENV=production npm start
 ```
 
-### Docker (Optional)
-
-```dockerfile
-FROM node:20-alpine
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --only=production
-COPY dist/ ./dist/
-COPY public/ ./public/
-EXPOSE 3000
-CMD ["npm", "start"]
-```
+> For complete deployment instructions including Docker and cloud deployment, see [Deployment Guide](docs/DEPLOYMENT.md).
 
 ## 📖 Documentation
 

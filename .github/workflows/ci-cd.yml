@@ -112,12 +112,16 @@ jobs:
       - name: 🚀 Deploy Backend to Cloud Run
         id: deploy-backend
         run: |
+          VERSION_DATE=$(date +%Y.%m.%d)
+          BUILD_NUMBER="${{ github.run_number }}"
+          BUILD_DATE="$(date -Iseconds)"
+
           gcloud run deploy ${{ secrets.CLOUD_RUN_SERVICE_DEV }} \
             --image ${{ env.IMAGE_URI }} \
             --platform managed \
             --region ${{ secrets.CLOUD_RUN_REGION }} \
             --allow-unauthenticated \
-            --set-env-vars "NODE_ENV=production,GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID_DEV }},FIRESTORE_DATABASE_ID=${{ secrets.FIRESTORE_DATABASE_ID_DEV }}" \
+            --set-env-vars "NODE_ENV=production,GOOGLE_CLOUD_PROJECT_ID=${{ secrets.GCP_PROJECT_ID_DEV }},FIRESTORE_DATABASE_ID=${{ secrets.FIRESTORE_DATABASE_ID_DEV }},GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID_DEV }},GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET_DEV }},OAUTH_REDIRECT_URI=${{ secrets.OAUTH_REDIRECT_URI_DEV }},APP_VERSION=$VERSION_DATE,BUILD_NUMBER=$BUILD_NUMBER,BUILD_DATE=$BUILD_DATE,ENVIRONMENT=development" \
             --memory 1Gi \
             --cpu 1 \
             --min-instances 0 \
@@ -140,7 +144,7 @@ jobs:
           BACKEND_URL="${{ steps.deploy-backend.outputs.SERVICE_URL }}"
           VERSION_DATE=$(date +%Y.%m.%d)
           BUILD_NUMBER="${{ github.run_number }}"
-          
+
           cat > config.js << EOF
           // Generated during deployment - do not edit manually
           window.API_BASE_URL = '$BACKEND_URL';
@@ -148,8 +152,14 @@ jobs:
           window.BUILD_NUMBER = '$BUILD_NUMBER';
           window.ENVIRONMENT = 'development';
           window.BUILD_DATE = '$(date -Iseconds)';
-          EOF
           
+          // Google OAuth Configuration
+          window.magpieConfig = {
+            apiBaseUrl: '$BACKEND_URL',
+            googleClientId: '${{ secrets.GOOGLE_CLIENT_ID_DEV }}'
+          };
+          EOF
+
           # Update manifest.json for development environment
           sed -i 's/"name": "Magpie"/"name": "Magpie (DEV)"/g' manifest.json
           sed -i 's/"short_name": "Magpie"/"short_name": "Magpie DEV"/g' manifest.json
@@ -240,12 +250,16 @@ jobs:
       - name: 🚀 Deploy Backend to Cloud Run
         id: deploy-backend
         run: |
+          VERSION_DATE=$(date +%Y.%m.%d)
+          BUILD_NUMBER="${{ github.run_number }}"
+          BUILD_DATE="$(date -Iseconds)"
+
           gcloud run deploy ${{ secrets.CLOUD_RUN_SERVICE_PROD }} \
             --image ${{ env.IMAGE_URI }} \
             --platform managed \
             --region ${{ secrets.CLOUD_RUN_REGION }} \
             --allow-unauthenticated \
-            --set-env-vars "NODE_ENV=production,GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID_PROD }},FIRESTORE_DATABASE_ID=${{ secrets.FIRESTORE_DATABASE_ID_PROD }}" \
+            --set-env-vars "NODE_ENV=production,GOOGLE_CLOUD_PROJECT_ID=${{ secrets.GCP_PROJECT_ID_PROD }},FIRESTORE_DATABASE_ID=${{ secrets.FIRESTORE_DATABASE_ID_PROD }},GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID_PROD }},GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET_PROD }},OAUTH_REDIRECT_URI=${{ secrets.OAUTH_REDIRECT_URI_PROD }},APP_VERSION=$VERSION_DATE,BUILD_NUMBER=$BUILD_NUMBER,BUILD_DATE=$BUILD_DATE,ENVIRONMENT=production" \
             --memory 1Gi \
             --cpu 1 \
             --min-instances 0 \
@@ -268,7 +282,7 @@ jobs:
           BACKEND_URL="${{ steps.deploy-backend.outputs.SERVICE_URL }}"
           VERSION_DATE=$(date +%Y.%m.%d)
           BUILD_NUMBER="${{ github.run_number }}"
-          
+
           cat > config.js << EOF
           // Generated during deployment - do not edit manually
           window.API_BASE_URL = '$BACKEND_URL';
@@ -276,6 +290,12 @@ jobs:
           window.BUILD_NUMBER = '$BUILD_NUMBER';
           window.ENVIRONMENT = 'production';
           window.BUILD_DATE = '$(date -Iseconds)';
+          
+          // Google OAuth Configuration
+          window.magpieConfig = {
+            apiBaseUrl: '$BACKEND_URL',
+            googleClientId: '${{ secrets.GOOGLE_CLIENT_ID_PROD }}'
+          };
           EOF
 
       - name: 🚀 Deploy Frontend to Firebase

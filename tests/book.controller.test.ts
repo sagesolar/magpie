@@ -4,18 +4,22 @@ import express from 'express';
 import { BookController } from '../src/api/book.controller';
 import { createBookRoutes } from '../src/api/book.routes';
 import { BookUseCase } from '../src/application/book.usecase';
-import { MockBookRepository, MockExternalBookService } from './mocks';
+import { AuthenticationMiddleware } from '../src/infrastructure/auth.middleware';
+import { MockBookRepository, MockExternalBookService, MockAuthMiddleware } from './mocks';
 
 describe('BookController API', () => {
   let app: express.Application;
   let bookUseCase: BookUseCase;
   let mockRepository: MockBookRepository;
   let mockExternalService: MockExternalBookService;
+  let mockAuthMiddleware: MockAuthMiddleware;
+  const testUserId = 'user-123';
 
   beforeEach(() => {
     // Setup
     mockRepository = new MockBookRepository();
     mockExternalService = new MockExternalBookService();
+    mockAuthMiddleware = new MockAuthMiddleware();
     bookUseCase = new BookUseCase(mockRepository, mockExternalService);
 
     const bookController = new BookController(bookUseCase);
@@ -23,7 +27,7 @@ describe('BookController API', () => {
     // Create Express app for testing
     app = express();
     app.use(express.json());
-    app.use('/api', createBookRoutes(bookController));
+    app.use('/api', createBookRoutes(bookController, mockAuthMiddleware as any));
 
     // Error handler
     app.use(
@@ -57,30 +61,38 @@ describe('BookController API', () => {
   describe('GET /api/books', () => {
     beforeEach(async () => {
       // Add test data
-      await bookUseCase.createBook({
-        isbn: '1111111111111',
-        title: 'JavaScript Guide',
-        authors: ['John Doe'],
-        publisher: 'Tech Books',
-        publishingYear: 2020,
-        type: 'reference',
-        genre: 'Programming',
-      });
+      await bookUseCase.createBook(
+        {
+          isbn: '1111111111111',
+          title: 'JavaScript Guide',
+          authors: ['John Doe'],
+          publisher: 'Tech Books',
+          publishingYear: 2020,
+          type: 'reference',
+          genre: 'Programming',
+        },
+        testUserId
+      );
 
-      await bookUseCase.createBook({
-        isbn: '2222222222222',
-        title: 'Python Basics',
-        authors: ['Jane Smith'],
-        publisher: 'Code Press',
-        publishingYear: 2021,
-        type: 'personal',
-        genre: 'Programming',
-        isFavourite: true,
-      });
+      await bookUseCase.createBook(
+        {
+          isbn: '2222222222222',
+          title: 'Python Basics',
+          authors: ['Jane Smith'],
+          publisher: 'Code Press',
+          publishingYear: 2021,
+          type: 'personal',
+          genre: 'Programming',
+          isFavourite: true,
+        },
+        testUserId
+      );
     });
 
     it('should return all books', async () => {
-      const response = await request(app).get('/api/books');
+      const response = await request(app)
+        .get('/api/books')
+        .set('Authorization', 'Bearer valid-token');
 
       expect(response.status).toBe(200);
       expect(response.body.data).toHaveLength(2);
@@ -90,14 +102,16 @@ describe('BookController API', () => {
     });
 
     it('should filter by genre', async () => {
-      const response = await request(app).get('/api/books?genre=Programming');
+      const response = await request(app)
+        .get('/api/books?genre=Programming')
+        .set('Authorization', 'Bearer valid-token');
 
       expect(response.status).toBe(200);
       expect(response.body.data).toHaveLength(2);
     });
 
     it('should filter by type', async () => {
-      const response = await request(app).get('/api/books?type=personal');
+      const response = await request(app).get('/api/books?type=personal').set('Authorization', 'Bearer valid-token');
 
       expect(response.status).toBe(200);
       expect(response.body.data).toHaveLength(1);
@@ -105,7 +119,7 @@ describe('BookController API', () => {
     });
 
     it('should filter by favourite status', async () => {
-      const response = await request(app).get('/api/books?isFavourite=true');
+      const response = await request(app).get('/api/books?isFavourite=true').set('Authorization', 'Bearer valid-token');
 
       expect(response.status).toBe(200);
       expect(response.body.data).toHaveLength(1);
@@ -113,7 +127,7 @@ describe('BookController API', () => {
     });
 
     it('should apply pagination', async () => {
-      const response = await request(app).get('/api/books?page=1&limit=1');
+      const response = await request(app).get('/api/books?page=1&limit=1').set('Authorization', 'Bearer valid-token');
 
       expect(response.status).toBe(200);
       expect(response.body.data).toHaveLength(1);
@@ -123,7 +137,7 @@ describe('BookController API', () => {
     });
 
     it('should sort books', async () => {
-      const response = await request(app).get('/api/books?sortField=title&sortDirection=desc');
+      const response = await request(app).get('/api/books?sortField=title&sortDirection=desc').set('Authorization', 'Bearer valid-token');
 
       expect(response.status).toBe(200);
       expect(response.body.data[0].title).toBe('Python Basics');
@@ -133,18 +147,21 @@ describe('BookController API', () => {
 
   describe('GET /api/books/:isbn', () => {
     beforeEach(async () => {
-      await bookUseCase.createBook({
-        isbn: '1111111111111',
-        title: 'Test Book',
-        authors: ['Test Author'],
-        publisher: 'Test Publisher',
-        publishingYear: 2020,
-        type: 'reference',
-      });
+      await bookUseCase.createBook(
+        {
+          isbn: '1111111111111',
+          title: 'Test Book',
+          authors: ['Test Author'],
+          publisher: 'Test Publisher',
+          publishingYear: 2020,
+          type: 'reference',
+        },
+        testUserId
+      );
     });
 
     it('should return book by ISBN', async () => {
-      const response = await request(app).get('/api/books/1111111111111');
+      const response = await request(app).get('/api/books/1111111111111').set('Authorization', 'Bearer valid-token');
 
       expect(response.status).toBe(200);
       expect(response.body.isbn).toBe('1111111111111');
@@ -152,14 +169,14 @@ describe('BookController API', () => {
     });
 
     it('should return 404 for non-existent book', async () => {
-      const response = await request(app).get('/api/books/9999999999999');
+      const response = await request(app).get('/api/books/9999999999999').set('Authorization', 'Bearer valid-token');
 
       expect(response.status).toBe(404);
       expect(response.body.error).toBe('Book not found');
     });
 
     it('should return 400 for invalid ISBN', async () => {
-      const response = await request(app).get('/api/books/invalid');
+      const response = await request(app).get('/api/books/invalid').set('Authorization', 'Bearer valid-token');
 
       expect(response.status).toBe(400);
     });
@@ -176,7 +193,10 @@ describe('BookController API', () => {
     };
 
     it('should create a new book', async () => {
-      const response = await request(app).post('/api/books').send(validBookData);
+      const response = await request(app)
+        .post('/api/books')
+        .set('Authorization', 'Bearer valid-token')
+        .send(validBookData);
 
       expect(response.status).toBe(201);
       expect(response.body.isbn).toBe(validBookData.isbn);
@@ -186,31 +206,43 @@ describe('BookController API', () => {
     it('should return 400 for invalid data', async () => {
       const invalidData = { ...validBookData, publishingYear: 'invalid' };
 
-      const response = await request(app).post('/api/books').send(invalidData);
+      const response = await request(app)
+        .post('/api/books')
+        .set('Authorization', 'Bearer valid-token')
+        .send(invalidData);
 
       expect(response.status).toBe(400);
     });
 
     it('should return 409 for duplicate ISBN', async () => {
-      await request(app).post('/api/books').send(validBookData);
+      await request(app)
+        .post('/api/books')
+        .set('Authorization', 'Bearer valid-token')
+        .send(validBookData);
 
-      const response = await request(app).post('/api/books').send(validBookData);
+      const response = await request(app)
+        .post('/api/books')
+        .set('Authorization', 'Bearer valid-token')
+        .send(validBookData);
 
       expect(response.status).toBe(409);
-      expect(response.body.error).toBe('Book with this ISBN already exists');
+      expect(response.body.error).toBe('Book with this ISBN already exists in your collection');
     });
   });
 
   describe('PUT /api/books/:isbn', () => {
     beforeEach(async () => {
-      await bookUseCase.createBook({
-        isbn: '1111111111111',
-        title: 'Original Title',
-        authors: ['Original Author'],
-        publisher: 'Original Publisher',
-        publishingYear: 2020,
-        type: 'reference',
-      });
+      await bookUseCase.createBook(
+        {
+          isbn: '1111111111111',
+          title: 'Original Title',
+          authors: ['Original Author'],
+          publisher: 'Original Publisher',
+          publishingYear: 2020,
+          type: 'reference',
+        },
+        testUserId
+      );
     });
 
     it('should update a book', async () => {
@@ -219,7 +251,10 @@ describe('BookController API', () => {
         genre: 'Updated Genre',
       };
 
-      const response = await request(app).put('/api/books/1111111111111').send(updateData);
+      const response = await request(app)
+        .put('/api/books/1111111111111')
+        .set('Authorization', 'Bearer valid-token')
+        .send(updateData);
 
       expect(response.status).toBe(200);
       expect(response.body.title).toBe('Updated Title');
@@ -229,53 +264,64 @@ describe('BookController API', () => {
     it('should return 404 for non-existent book', async () => {
       const response = await request(app)
         .put('/api/books/9999999999999')
+        .set('Authorization', 'Bearer valid-token')
         .send({ title: 'New Title' });
 
       expect(response.status).toBe(404);
-      expect(response.body.error).toBe('Book not found');
+      expect(response.body.error).toBe('Book not found or you do not have permission to edit it');
     });
   });
 
   describe('DELETE /api/books/:isbn', () => {
     beforeEach(async () => {
-      await bookUseCase.createBook({
-        isbn: '1111111111111',
-        title: 'Test Book',
-        authors: ['Test Author'],
-        publisher: 'Test Publisher',
-        publishingYear: 2020,
-        type: 'reference',
-      });
+      await bookUseCase.createBook(
+        {
+          isbn: '1111111111111',
+          title: 'Test Book',
+          authors: ['Test Author'],
+          publisher: 'Test Publisher',
+          publishingYear: 2020,
+          type: 'reference',
+        },
+        testUserId
+      );
     });
 
     it('should delete a book', async () => {
-      const response = await request(app).delete('/api/books/1111111111111');
+      const response = await request(app)
+        .delete('/api/books/1111111111111')
+        .set('Authorization', 'Bearer valid-token');
 
       expect(response.status).toBe(204);
     });
 
     it('should return 404 for non-existent book', async () => {
-      const response = await request(app).delete('/api/books/9999999999999');
+      const response = await request(app)
+        .delete('/api/books/9999999999999')
+        .set('Authorization', 'Bearer valid-token');
 
       expect(response.status).toBe(404);
-      expect(response.body.error).toBe('Book not found');
+      expect(response.body.error).toBe('Book not found or you do not have permission to delete it');
     });
   });
 
   describe('GET /api/search', () => {
     beforeEach(async () => {
-      await bookUseCase.createBook({
-        isbn: '1111111111111',
-        title: 'JavaScript Guide',
-        authors: ['John Doe'],
-        publisher: 'Tech Books',
-        publishingYear: 2020,
-        type: 'reference',
-      });
+      await bookUseCase.createBook(
+        {
+          isbn: '1111111111111',
+          title: 'JavaScript Guide',
+          authors: ['John Doe'],
+          publisher: 'Tech Books',
+          publishingYear: 2020,
+          type: 'reference',
+        },
+        testUserId
+      );
     });
 
     it('should search books', async () => {
-      const response = await request(app).get('/api/search?q=JavaScript');
+      const response = await request(app).get('/api/search?q=JavaScript').set('Authorization', 'Bearer valid-token');
 
       expect(response.status).toBe(200);
       expect(response.body).toHaveLength(1);
@@ -283,7 +329,7 @@ describe('BookController API', () => {
     });
 
     it('should return 400 for missing query', async () => {
-      const response = await request(app).get('/api/search');
+      const response = await request(app).get('/api/search').set('Authorization', 'Bearer valid-token');
 
       expect(response.status).toBe(400);
       expect(response.body.error).toBe('Query parameter "q" is required');
@@ -292,14 +338,14 @@ describe('BookController API', () => {
 
   describe('GET /api/external/:isbn', () => {
     it('should fetch external book data', async () => {
-      const response = await request(app).get('/api/external/9780134685991');
+      const response = await request(app).get('/api/external/9780134685991').set('Authorization', 'Bearer valid-token');
 
       expect(response.status).toBe(200);
       expect(response.body.title).toBe('Effective TypeScript');
     });
 
     it('should return 404 for unknown ISBN', async () => {
-      const response = await request(app).get('/api/external/9999999999999');
+      const response = await request(app).get('/api/external/9999999999999').set('Authorization', 'Bearer valid-token');
 
       expect(response.status).toBe(404);
       expect(response.body.error).toBe('Book data not found in external sources');
@@ -308,19 +354,23 @@ describe('BookController API', () => {
 
   describe('PUT /api/books/:isbn/favourite', () => {
     beforeEach(async () => {
-      await bookUseCase.createBook({
-        isbn: '1111111111111',
-        title: 'Test Book',
-        authors: ['Test Author'],
-        publisher: 'Test Publisher',
-        publishingYear: 2020,
-        type: 'reference',
-      });
+      await bookUseCase.createBook(
+        {
+          isbn: '1111111111111',
+          title: 'Test Book',
+          authors: ['Test Author'],
+          publisher: 'Test Publisher',
+          publishingYear: 2020,
+          type: 'reference',
+        },
+        testUserId
+      );
     });
 
     it('should toggle favourite status', async () => {
       const response = await request(app)
         .put('/api/books/1111111111111/favourite')
+        .set('Authorization', 'Bearer valid-token')
         .send({ isFavourite: true });
 
       expect(response.status).toBe(200);
@@ -330,6 +380,7 @@ describe('BookController API', () => {
     it('should return 400 for invalid data', async () => {
       const response = await request(app)
         .put('/api/books/1111111111111/favourite')
+        .set('Authorization', 'Bearer valid-token')
         .send({ isFavourite: 'invalid' });
 
       expect(response.status).toBe(400);
@@ -339,14 +390,17 @@ describe('BookController API', () => {
 
   describe('PUT /api/books/:isbn/loan', () => {
     beforeEach(async () => {
-      await bookUseCase.createBook({
-        isbn: '1111111111111',
-        title: 'Test Book',
-        authors: ['Test Author'],
-        publisher: 'Test Publisher',
-        publishingYear: 2020,
-        type: 'reference',
-      });
+      await bookUseCase.createBook(
+        {
+          isbn: '1111111111111',
+          title: 'Test Book',
+          authors: ['Test Author'],
+          publisher: 'Test Publisher',
+          publishingYear: 2020,
+          type: 'reference',
+        },
+        testUserId
+      );
     });
 
     it('should update loan status', async () => {
@@ -356,7 +410,10 @@ describe('BookController API', () => {
         loanedDate: new Date().toISOString(),
       };
 
-      const response = await request(app).put('/api/books/1111111111111/loan').send({ loanStatus });
+      const response = await request(app)
+        .put('/api/books/1111111111111/loan')
+        .set('Authorization', 'Bearer valid-token')
+        .send({ loanStatus });
 
       expect(response.status).toBe(200);
       expect(response.body.loanStatus.isLoaned).toBe(true);
@@ -366,6 +423,7 @@ describe('BookController API', () => {
     it('should return 400 for invalid loan status', async () => {
       const response = await request(app)
         .put('/api/books/1111111111111/loan')
+        .set('Authorization', 'Bearer valid-token')
         .send({ loanStatus: { invalid: true } });
 
       expect(response.status).toBe(400);

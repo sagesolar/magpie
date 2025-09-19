@@ -7,7 +7,13 @@ class APIService {
     this.baseUrl = (window.API_BASE_URL || '') + '/api';
     this.isOnline = navigator.onLine;
 
-    console.log('API Base URL:', this.baseUrl);
+    // Enhanced debugging for deployed version
+    console.log('APIService Debug:', {
+      'window.API_BASE_URL': window.API_BASE_URL,
+      'window.magpieConfig': window.magpieConfig,
+      'Final baseUrl': this.baseUrl,
+      'Current location': window.location.href
+    });
 
     // Listen for online/offline events
     window.addEventListener('online', () => {
@@ -22,9 +28,17 @@ class APIService {
 
   async request(endpoint, options = {}) {
     const url = `${this.baseUrl}${endpoint}`;
+
+    // Get authentication headers if user is logged in
+    const authHeaders =
+      window.magpieAuth && window.magpieAuth.isAuthenticated()
+        ? window.magpieAuth.getAuthHeader()
+        : {};
+
     const config = {
       headers: {
         'Content-Type': 'application/json',
+        ...authHeaders,
         ...options.headers,
       },
       ...options,
@@ -32,6 +46,16 @@ class APIService {
 
     try {
       const response = await fetch(url, config);
+
+      // Handle authentication errors
+      if (response.status === 401) {
+        console.warn('Authentication failed or token expired');
+        if (window.magpieAuth && window.magpieAuth.isAuthenticated()) {
+          // Token expired, logout user
+          await window.magpieAuth.logout();
+        }
+        throw new Error('Authentication required');
+      }
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -159,6 +183,44 @@ class APIService {
   // Check if we're in offline mode
   isOfflineMode() {
     return !this.isOnline;
+  }
+
+  // Authentication API methods
+  async updateUserProfile(updateData) {
+    return this.request('/auth/profile', {
+      method: 'PUT',
+      body: JSON.stringify(updateData),
+    });
+  }
+
+  async getUserProfile() {
+    return this.request('/auth/profile');
+  }
+
+  // Book sharing API methods
+  async shareBook(isbn, shareData) {
+    return this.request(`/books/${isbn}/share`, {
+      method: 'POST',
+      body: JSON.stringify(shareData),
+    });
+  }
+
+  async getSharedBooks() {
+    return this.request('/books/shared');
+  }
+
+  async updateBookPermissions(isbn, permissions) {
+    return this.request(`/books/${isbn}/permissions`, {
+      method: 'PUT',
+      body: JSON.stringify(permissions),
+    });
+  }
+
+  async removeBookAccess(isbn, userEmail) {
+    return this.request(`/books/${isbn}/access`, {
+      method: 'DELETE',
+      body: JSON.stringify({ userEmail }),
+    });
   }
 }
 

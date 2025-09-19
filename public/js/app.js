@@ -10,12 +10,17 @@ class MagpieApp {
     this.books = [];
     this.filteredBooks = [];
     this.isInitialized = false;
+    this.currentUser = null;
+    this.isAuthenticated = false;
 
     this.init();
   }
 
   async init() {
     try {
+      // Initialize authentication
+      await this.initAuthentication();
+
       // Initialize IndexedDB
       await bookDB.init();
 
@@ -27,9 +32,15 @@ class MagpieApp {
 
       // Update UI
       this.updateConnectionStatus();
+      this.updateAuthUI();
       this.renderBooks();
       this.populateGenreFilter();
       this.updateVersionInfo();
+
+      // Check for pending changes (async)
+      this.updateSyncStatus().catch(error => {
+        console.warn('Failed to update sync status:', error);
+      });
 
       // Pre-cache cover images for offline use
       this.cacheCoverImages();
@@ -39,6 +50,33 @@ class MagpieApp {
     } catch (error) {
       console.error('Failed to initialize app:', error);
       this.showToast('Failed to initialize app', 'error');
+    }
+  }
+
+  async initAuthentication() {
+    try {
+      // Initialize auth service
+      if (window.magpieAuth) {
+        await window.magpieAuth.initialize();
+
+        // Check if user is already authenticated
+        this.isAuthenticated = window.magpieAuth.isAuthenticated();
+        this.currentUser = window.magpieAuth.getCurrentUser();
+
+        // Setup auth event listeners
+        window.addEventListener('magpie:login', event => {
+          this.handleLogin(event.detail.user, event.detail.error);
+        });
+
+        window.addEventListener('magpie:logout', () => {
+          this.handleLogout();
+        });
+
+        console.log('Authentication initialized. Logged in:', this.isAuthenticated);
+      }
+    } catch (error) {
+      console.warn('Authentication initialization failed:', error);
+      // Continue without auth - offline mode
     }
   }
 
@@ -77,30 +115,30 @@ class MagpieApp {
       this.books = await bookDB.getAllBooks();
       this.filteredBooks = [...this.books];
 
-      // Try to sync with server if online
+      // Try to sync with server if online (but don't auto-sync changes)
       if (navigator.onLine) {
         try {
-          // First sync any offline changes
-          await apiService.syncOfflineChanges();
-          
-          // Then fetch latest books from server
+          // Only fetch latest books from server, don't auto-sync changes
           const response = await apiService.getAllBooks();
           if (response && response.data) {
             // Save fetched books to local database using batch method
             await bookDB.saveBooksFromServer(response.data);
             console.log(`Fetched ${response.data.length} books from server`);
           }
-          
-          // Reload from local database after server sync
+
+          // Reload from local database after server fetch
           this.books = await bookDB.getAllBooks();
           this.filteredBooks = [...this.books];
         } catch (error) {
-          console.warn('Sync failed, using offline data:', error);
+          console.warn('Server fetch failed, using offline data:', error);
         }
       }
 
       this.renderBooks();
       this.populateGenreFilter();
+      
+      // Update sync status after loading
+      await this.updateSyncStatus();
     } catch (error) {
       console.error('Failed to load books:', error);
       this.showToast('Failed to load books', 'error');
@@ -136,22 +174,71 @@ class MagpieApp {
       syncButton.style.display = 'block';
     } else {
       statusDot.classList.add('offline');
-      statusText.textContent = 'Offline';
+      
+      // Show different offline status based on authentication
+      const isAuthenticated = window.magpieAuth && window.magpieAuth.isAuthenticated();
+      if (isAuthenticated) {
+        statusText.textContent = 'Offline Mode';
+      } else {
+        statusText.textContent = 'Offline';
+      }
+      
       syncButton.style.display = 'none';
     }
+  }
+
+  // Update sync status and show pending changes count
+  async updateSyncStatus() {
+    if (!navigator.onLine) return;
+    
+    const syncButton = document.getElementById('syncButton');
+    const syncBadge = document.getElementById('syncBadge') || this.createSyncBadge();
+    
+    try {
+      const pendingChanges = await bookDB.getUnsyncedChanges();
+      const changeCount = pendingChanges.length;
+      
+      if (changeCount > 0) {
+        syncBadge.textContent = changeCount;
+        syncBadge.style.display = 'block';
+        syncButton.title = `${changeCount} pending changes - Click to review and sync`;
+        syncButton.classList.add('has-pending-changes');
+      } else {
+        syncBadge.style.display = 'none';
+        syncButton.title = 'Sync with server';
+        syncButton.classList.remove('has-pending-changes');
+      }
+    } catch (error) {
+      console.error('Failed to check sync status:', error);
+    }
+  }
+
+  // Create sync notification badge
+  createSyncBadge() {
+    const syncButton = document.getElementById('syncButton');
+    const badge = document.createElement('span');
+    badge.id = 'syncBadge';
+    badge.className = 'sync-badge';
+    badge.style.display = 'none';
+    
+    // Position badge relative to sync button
+    syncButton.style.position = 'relative';
+    syncButton.appendChild(badge);
+    
+    return badge;
   }
 
   updateVersionInfo() {
     // Use setTimeout to ensure DOM is ready
     setTimeout(() => {
       const versionInfo = document.getElementById('versionInfo');
-      
+
       if (versionInfo && window.APP_VERSION) {
         const buildInfo = window.BUILD_NUMBER ? `b${window.BUILD_NUMBER}` : '';
         const envInfo = window.ENVIRONMENT === 'development' ? ' (dev)' : '';
         const versionText = `${window.APP_VERSION}${buildInfo}${envInfo}`;
         versionInfo.textContent = versionText;
-        
+
         // Add the dev class if in development
         if (window.ENVIRONMENT === 'development') {
           versionInfo.classList.add('dev');
@@ -164,6 +251,12 @@ class MagpieApp {
 
   // Tab Management
   switchTab(tabName) {
+    // Check if trying to access shared tab without authentication
+    if (tabName === 'shared' && !this.isAuthenticated) {
+      this.showToast('Please sign in to view shared books', 'warning');
+      return;
+    }
+
     // Remove active class from all tabs and content
     document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
     document
@@ -171,7 +264,7 @@ class MagpieApp {
       .forEach(content => content.classList.remove('active'));
 
     // Add active class to selected tab and content
-    event.target.classList.add('active');
+    document.querySelector(`[onclick="app.switchTab('${tabName}')"]`).classList.add('active');
     document.getElementById(`${tabName}-tab`).classList.add('active');
 
     this.currentTab = tabName;
@@ -183,6 +276,9 @@ class MagpieApp {
         break;
       case 'favourites':
         this.renderFavourites();
+        break;
+      case 'shared':
+        this.renderSharedBooks();
         break;
       case 'wishlist':
         this.renderWishlist();
@@ -197,19 +293,90 @@ class MagpieApp {
   renderBooks() {
     const container = document.getElementById('booksContainer');
 
-    if (!this.filteredBooks.length) {
-      container.innerHTML = `
-        <div class="empty-state">
-          <h3>No books found</h3>
-          <p>Start building your collection by adding books!</p>
-          <button class="btn btn-primary" onclick="app.showAddBookModal()">Add Your First Book</button>
-        </div>
-      `;
+    console.log(`[DEBUG] renderBooks: Starting with ${this.filteredBooks.length} filtered books`);
+
+    // Filter books based on authentication and ownership
+    const visibleBooks = this.filterUserAccessibleBooks(this.filteredBooks);
+
+    console.log(`[DEBUG] renderBooks: After filtering, ${visibleBooks.length} visible books`);
+
+    if (!visibleBooks.length) {
+      const isAuthenticated = window.magpieAuth && window.magpieAuth.isAuthenticated();
+      console.log(`[DEBUG] renderBooks: No visible books, authenticated: ${isAuthenticated}`);
+      
+      if (isAuthenticated) {
+        // User is authenticated but has no books
+        const currentUser = window.magpieAuth.getCurrentUser();
+        const offlineNote = currentUser?.isOfflineMode ? ' (Offline Mode)' : '';
+        
+        container.innerHTML = `
+          <div class="empty-state">
+            <h3>No books in your collection${offlineNote}</h3>
+            <p>Start building your personal collection by adding books!</p>
+            <button class="btn btn-primary" onclick="app.showAddBookModal()">Add Your First Book</button>
+          </div>
+        `;
+      } else {
+        // User is not authenticated
+        container.innerHTML = `
+          <div class="empty-state">
+            <h3>Please sign in to view your books</h3>
+            <p>Sign in with Google to access your personal book collection.</p>
+            <button class="btn btn-primary" onclick="app.showLogin()">Sign In</button>
+          </div>
+        `;
+      }
       return;
     }
 
-    const booksHTML = this.filteredBooks.map(book => this.renderBookCard(book)).join('');
+    const booksHTML = visibleBooks.map(book => this.renderBookCard(book)).join('');
     container.innerHTML = `<div class="books-grid">${booksHTML}</div>`;
+  }
+
+  filterUserAccessibleBooks(books) {
+    // Check authentication state (works offline)
+    if (!window.magpieAuth || !window.magpieAuth.isAuthenticated()) {
+      console.log('[DEBUG] Not authenticated, showing no books');
+      return [];
+    }
+
+    const currentUser = window.magpieAuth.getCurrentUser();
+    if (!currentUser) {
+      console.log('[DEBUG] No current user, showing no books');
+      return [];
+    }
+
+    console.log('[DEBUG] Current user:', currentUser);
+    console.log('[DEBUG] Filtering books. Total books:', books.length);
+
+    // Filter books that user owns or has access to
+    const filteredBooks = books.filter(book => {
+      console.log(`[DEBUG] Checking book: ${book.title} (ownerId: ${book.ownerId})`);
+      
+      // All books must have an owner - no legacy books
+      if (!book.ownerId) {
+        console.log(`[DEBUG] Book ${book.title} has no owner, hiding (no legacy books)`);
+        return false;
+      }
+
+      // Show if user owns the book (works offline with cached user identity)
+      if (book.ownerId === currentUser.id) {
+        console.log(`[DEBUG] Book ${book.title} owned by user (${currentUser.id}), showing`);
+        return true;
+      }
+
+      // Show if book is shared with user
+      if (book.sharedWith && book.sharedWith.some(share => share.userEmail === currentUser.email)) {
+        console.log(`[DEBUG] Book ${book.title} shared with user, showing`);
+        return true;
+      }
+
+      console.log(`[DEBUG] Book ${book.title} not accessible to user, hiding`);
+      return false;
+    });
+
+    console.log(`[DEBUG] Filtered ${filteredBooks.length} books from ${books.length} total`);
+    return filteredBooks;
   }
 
   renderBookCard(book) {
@@ -289,6 +456,7 @@ class MagpieApp {
           <div><strong>Published:</strong> ${book.publishingYear || 'N/A'}</div>
           <div><strong>Rating:</strong> ${book.rating ? '⭐'.repeat(book.rating) : 'Not rated'}</div>
           ${book.loanStatus?.loanedTo ? `<div><strong>Loaned to:</strong> ${book.loanStatus.loanedTo}</div>` : ''}
+          ${this.renderOwnershipInfo(book)}
         </div>
         </div>
       </div>
@@ -297,7 +465,7 @@ class MagpieApp {
 
   renderFavourites() {
     const container = document.getElementById('favouritesContainer');
-    const favourites = this.books.filter(book => book.isFavourite);
+    const favourites = this.filterUserAccessibleBooks(this.books.filter(book => book.isFavourite));
 
     if (!favourites.length) {
       container.innerHTML = `
@@ -316,7 +484,7 @@ class MagpieApp {
   renderWishlist() {
     const container = document.getElementById('wishlistContainer');
     // For now, wishlist shows unread books
-    const wishlist = this.books.filter(book => !book.isRead);
+    const wishlist = this.filterUserAccessibleBooks(this.books.filter(book => !book.isRead));
 
     if (!wishlist.length) {
       container.innerHTML = `
@@ -334,7 +502,7 @@ class MagpieApp {
 
   renderLoans() {
     const container = document.getElementById('loansContainer');
-    const loans = this.books.filter(book => book.loanedTo);
+    const loans = this.filterUserAccessibleBooks(this.books.filter(book => book.loanedTo));
 
     if (!loans.length) {
       container.innerHTML = `
@@ -348,6 +516,46 @@ class MagpieApp {
 
     const booksHTML = loans.map(book => this.renderBookCard(book)).join('');
     container.innerHTML = `<div class="books-grid">${booksHTML}</div>`;
+  }
+
+  renderOwnershipInfo(book) {
+    // Check if user is authenticated
+    if (!window.magpieAuth || !window.magpieAuth.isAuthenticated()) {
+      return '';
+    }
+
+    const currentUser = window.magpieAuth.getCurrentUser();
+    if (!currentUser || !book.ownerId) {
+      return '';
+    }
+
+    // Check if current user owns the book
+    const isOwner = book.ownerId === currentUser.sub;
+
+    // Check if book is shared with current user
+    const isShared =
+      book.sharedWith && book.sharedWith.some(share => share.userEmail === currentUser.email);
+
+    let ownershipHTML = '';
+
+    if (isOwner) {
+      ownershipHTML += `<div><strong>Owner:</strong> You</div>`;
+
+      // Show shared users if any
+      if (book.sharedWith && book.sharedWith.length > 0) {
+        const sharedUsers = book.sharedWith.map(share => share.userEmail).join(', ');
+        ownershipHTML += `<div><strong>Shared with:</strong> ${sharedUsers}</div>`;
+      }
+    } else if (isShared) {
+      const share = book.sharedWith.find(s => s.userEmail === currentUser.email);
+      ownershipHTML += `<div><strong>Shared by:</strong> ${book.ownerId}</div>`;
+      if (share.permissions) {
+        const permissions = share.permissions.join(', ');
+        ownershipHTML += `<div><strong>Permissions:</strong> ${permissions}</div>`;
+      }
+    }
+
+    return ownershipHTML;
   }
 
   // Search and Filtering
@@ -412,16 +620,30 @@ class MagpieApp {
 
   // Book Actions
   async toggleFavourite(isbn) {
+    // Check authentication (works offline)
+    if (!this.isAuthenticated || !this.currentUser) {
+      this.showToast('Please sign in to manage favourites', 'warning');
+      return;
+    }
+
     try {
       const book = await bookDB.getBook(isbn);
       if (book) {
+        // Check if user owns this book (works with offline user identity)
+        if (book.ownerId !== this.currentUser.sub) {
+          this.showToast('You can only modify your own books', 'error');
+          return;
+        }
+
         book.isFavourite = !book.isFavourite;
+        book.needsSync = true; // Mark for sync when online
         await bookDB.saveBook(book);
         await this.loadBooks();
-        this.showToast(
-          `Book ${book.isFavourite ? 'added to' : 'removed from'} favourites`,
-          'success'
-        );
+        await this.updateSyncStatus(); // Update sync badge
+        
+        const action = book.isFavourite ? 'added to' : 'removed from';
+        const syncNote = !navigator.onLine ? ' (will sync when online)' : '';
+        this.showToast(`Book ${action} favourites${syncNote}`, 'success');
       }
     } catch (error) {
       console.error('Toggle favourite failed:', error);
@@ -430,13 +652,30 @@ class MagpieApp {
   }
 
   async toggleRead(isbn) {
+    // Check authentication (works offline)
+    if (!this.isAuthenticated || !this.currentUser) {
+      this.showToast('Please sign in to manage read status', 'warning');
+      return;
+    }
+
     try {
       const book = await bookDB.getBook(isbn);
       if (book) {
+        // Check if user owns this book (works with offline user identity)
+        if (book.ownerId !== this.currentUser.sub) {
+          this.showToast('You can only modify your own books', 'error');
+          return;
+        }
+
         book.isRead = !book.isRead;
+        book.needsSync = true; // Mark for sync when online
         await bookDB.saveBook(book);
         await this.loadBooks();
-        this.showToast(`Book marked as ${book.isRead ? 'read' : 'unread'}`, 'success');
+        await this.updateSyncStatus(); // Update sync badge
+        
+        const status = book.isRead ? 'read' : 'unread';
+        const syncNote = !navigator.onLine ? ' (will sync when online)' : '';
+        this.showToast(`Book marked as ${status}${syncNote}`, 'success');
       }
     } catch (error) {
       console.error('Toggle read failed:', error);
@@ -445,12 +684,28 @@ class MagpieApp {
   }
 
   async deleteBook(isbn) {
+    // Check authentication (works offline)
+    if (!this.isAuthenticated || !this.currentUser) {
+      this.showToast('Please sign in to delete books', 'warning');
+      return;
+    }
+
+    // Check if user owns this book (works with offline user identity)
+    const book = await bookDB.getBook(isbn);
+    if (book && book.ownerId !== this.currentUser.sub) {
+      this.showToast('You can only delete your own books', 'error');
+      return;
+    }
+
     if (!confirm('Are you sure you want to delete this book?')) return;
 
     try {
       await bookDB.deleteBook(isbn);
       await this.loadBooks();
-      this.showToast('Book deleted successfully', 'success');
+      await this.updateSyncStatus(); // Update sync badge
+      
+      const syncNote = !navigator.onLine ? ' (will sync when online)' : '';
+      this.showToast(`Book deleted successfully${syncNote}`, 'success');
     } catch (error) {
       console.error('Delete failed:', error);
       this.showToast('Failed to delete book', 'error');
@@ -459,6 +714,12 @@ class MagpieApp {
 
   // Modal Management
   showAddBookModal() {
+    // Check authentication (works offline)
+    if (!this.isAuthenticated || !this.currentUser) {
+      this.showToast('Please sign in to add books', 'warning');
+      return;
+    }
+
     document.getElementById('modalTitle').textContent = 'Add New Book';
     document.getElementById('bookForm').reset();
     document.getElementById('bookModal').classList.add('active');
@@ -466,9 +727,21 @@ class MagpieApp {
   }
 
   async showEditModal(isbn) {
+    // Check authentication (works offline)
+    if (!this.isAuthenticated || !this.currentUser) {
+      this.showToast('Please sign in to edit books', 'warning');
+      return;
+    }
+
     try {
       const book = await bookDB.getBook(isbn);
       if (!book) return;
+
+      // Check if user owns this book (works with offline user identity)
+      if (book.ownerId !== this.currentUser.sub) {
+        this.showToast('You can only edit your own books', 'error');
+        return;
+      }
 
       document.getElementById('modalTitle').textContent = 'Edit Book';
       document.getElementById('isbnInput').value = book.isbn;
@@ -501,6 +774,12 @@ class MagpieApp {
   async saveBook(event) {
     event.preventDefault();
 
+    // Check authentication (works offline)
+    if (!this.isAuthenticated || !this.currentUser) {
+      this.showToast('Please sign in to save books', 'warning');
+      return;
+    }
+
     const formData = new FormData(event.target);
     const bookData = {
       isbn: document.getElementById('isbnInput').value.trim(),
@@ -523,14 +802,19 @@ class MagpieApp {
       dateAdded: this.currentBook?.dateAdded || new Date().toISOString(),
       dateUpdated: new Date().toISOString(),
       isOfflineOnly: !navigator.onLine,
-      needsSync: true,
+      needsSync: true, // Always mark for sync
+      // Set owner to current authenticated user (works offline)
+      ownerId: this.currentUser.sub,
     };
 
     try {
       await bookDB.saveBook(bookData);
       await this.loadBooks();
+      await this.updateSyncStatus(); // Update sync badge
       this.closeModal();
-      this.showToast('Book saved successfully', 'success');
+      
+      const syncNote = !navigator.onLine ? ' (will sync when online)' : '';
+      this.showToast(`Book saved successfully${syncNote}`, 'success');
     } catch (error) {
       console.error('Save failed:', error);
       this.showToast('Failed to save book', 'error');
@@ -692,19 +976,226 @@ class MagpieApp {
       return;
     }
 
-    const syncButton = document.getElementById('syncButton');
-    syncButton.textContent = '🔄 Syncing...';
-    syncButton.disabled = true;
+    if (!window.magpieAuth.isAuthenticated()) {
+      this.showToast('Please sign in to sync', 'error');
+      return;
+    }
 
+    // Check for pending changes
+    const pendingChanges = await bookDB.getUnsyncedChanges();
+    
+    if (pendingChanges.length > 0) {
+      // Show review modal for pending changes
+      console.log(`[DEBUG] Found ${pendingChanges.length} pending changes, showing review modal`);
+      this.showSyncReviewModal(pendingChanges);
+    } else {
+      // No pending changes, perform a refresh sync to get latest data from server
+      console.log('[DEBUG] No pending changes, performing refresh sync');
+      await this.performRefreshSync();
+    }
+  }
+
+  // Perform a refresh sync when no local changes exist
+  async performRefreshSync() {
+    try {
+      this.showToast('Syncing with server...', 'info');
+      this.updateSyncStatus(true); // Show syncing indicator
+
+      // Fetch latest books from server
+      console.log('[DEBUG] Fetching latest books from server');
+      const response = await fetch(window.API.getUrl('/api/books'), {
+        headers: window.magpieAuth.getAuthHeader()
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          this.showToast('Authentication required. Please sign in again.', 'error');
+          await window.magpieAuth.logout();
+          return;
+        }
+        throw new Error(`Server response: ${response.status}`);
+      }
+
+      const latestBooks = await response.json();
+      console.log(`[DEBUG] Received ${latestBooks.length} books from server`);
+
+      // Update local database with latest server data
+      for (const serverBook of latestBooks) {
+        await bookDB.syncBookFromServer(serverBook);
+      }
+
+      // Check if there are any books locally that are no longer on server
+      const localBooks = await bookDB.getAllBooks();
+      const serverISBNs = new Set(latestBooks.map(book => book.isbn));
+      
+      for (const localBook of localBooks) {
+        if (!serverISBNs.has(localBook.isbn) && localBook.ownerId === window.magpieAuth.getCurrentUser()?.id) {
+          // Book exists locally but not on server - user might have deleted it elsewhere
+          console.log(`[DEBUG] Book ${localBook.title} exists locally but not on server`);
+          // Could prompt user about this discrepancy, but for now just keep local copy
+        }
+      }
+
+      // Refresh the UI with updated data
+      await this.loadAndDisplayBooks();
+      
+      this.showToast('✅ Sync completed successfully', 'success');
+      console.log('[DEBUG] Refresh sync completed successfully');
+
+    } catch (error) {
+      console.error('Refresh sync failed:', error);
+      this.showToast(`Sync failed: ${error.message}`, 'error');
+    } finally {
+      this.updateSyncStatus(false); // Hide syncing indicator
+    }
+  }
+
+  // Sync review and confirmation
+  showSyncReviewModal(pendingChanges) {
+    const modal = document.createElement('div');
+    modal.className = 'sync-review-modal';
+    modal.id = 'syncReviewModal';
+    
+    const changesSummary = this.createChangesSummary(pendingChanges);
+    
+    modal.innerHTML = `
+      <div class="sync-review-content">
+        <div class="sync-review-header">
+          <h3>Review Offline Changes</h3>
+          <p>Review the following ${pendingChanges.length} changes before syncing to the server:</p>
+          <button class="sync-review-close" onclick="app.closeSyncReviewModal()">&times;</button>
+        </div>
+        <div class="sync-review-body">
+          ${changesSummary}
+        </div>
+        <div class="sync-review-footer">
+          <button class="btn btn-secondary" onclick="app.closeSyncReviewModal()">Cancel</button>
+          <button class="btn btn-primary" onclick="app.confirmSync()">Sync ${pendingChanges.length} Changes</button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+  }
+
+  createChangesSummary(pendingChanges) {
+    const grouped = this.groupChangesByAction(pendingChanges);
+    let summary = '';
+    
+    // Created books
+    if (grouped.create.length > 0) {
+      summary += `
+        <div class="changes-section">
+          <h4>📚 Books to Create (${grouped.create.length})</h4>
+          <div class="changes-list">
+            ${grouped.create.map(change => this.renderChangeItem(change)).join('')}
+          </div>
+        </div>
+      `;
+    }
+    
+    // Updated books
+    if (grouped.update.length > 0) {
+      summary += `
+        <div class="changes-section">
+          <h4>✏️ Books to Update (${grouped.update.length})</h4>
+          <div class="changes-list">
+            ${grouped.update.map(change => this.renderChangeItem(change)).join('')}
+          </div>
+        </div>
+      `;
+    }
+    
+    // Deleted books
+    if (grouped.delete.length > 0) {
+      summary += `
+        <div class="changes-section">
+          <h4>🗑️ Books to Delete (${grouped.delete.length})</h4>
+          <div class="changes-list">
+            ${grouped.delete.map(change => this.renderChangeItem(change)).join('')}
+          </div>
+        </div>
+      `;
+    }
+    
+    return summary || '<p>No changes to sync.</p>';
+  }
+
+  groupChangesByAction(changes) {
+    return {
+      create: changes.filter(c => c.action === 'create'),
+      update: changes.filter(c => c.action === 'update'),
+      delete: changes.filter(c => c.action === 'delete')
+    };
+  }
+
+  renderChangeItem(change) {
+    const book = change.data;
+    const timestamp = new Date(change.timestamp).toLocaleString();
+    
+    const actionIcons = {
+      create: '➕',
+      update: '✏️',
+      delete: '🗑️'
+    };
+    
+    const actionColors = {
+      create: '#10b981',
+      update: '#f59e0b', 
+      delete: '#ef4444'
+    };
+    
+    return `
+      <div class="change-item" style="border-left: 3px solid ${actionColors[change.action]}">
+        <div class="change-header">
+          <span class="change-action">${actionIcons[change.action]} ${change.action.toUpperCase()}</span>
+          <span class="change-timestamp">${timestamp}</span>
+        </div>
+        <div class="change-book">
+          <strong>${book.title || 'Unknown Title'}</strong>
+          ${book.authors ? `<br><small>by ${book.authors.join(', ')}</small>` : ''}
+          <br><small>ISBN: ${book.isbn}</small>
+          ${change.action !== 'delete' ? `<button class="btn btn-link" onclick="app.viewBookDetails('${book.isbn}')">View Details</button>` : ''}
+        </div>
+      </div>
+    `;
+  }
+
+  async viewBookDetails(isbn) {
+    try {
+      const book = await bookDB.getBook(isbn);
+      if (book) {
+        // Show book details in a modal or expand inline
+        alert(`Book Details:\n\nTitle: ${book.title}\nAuthors: ${book.authors.join(', ')}\nISBN: ${book.isbn}\nGenre: ${book.genre || 'N/A'}\nRead: ${book.isRead ? 'Yes' : 'No'}\nFavourite: ${book.isFavourite ? 'Yes' : 'No'}`);
+      }
+    } catch (error) {
+      console.error('Failed to load book details:', error);
+      this.showToast('Failed to load book details', 'error');
+    }
+  }
+
+  closeSyncReviewModal() {
+    const modal = document.getElementById('syncReviewModal');
+    if (modal) {
+      document.body.removeChild(modal);
+    }
+  }
+
+  async confirmSync() {
+    const syncButton = document.querySelector('.sync-review-footer .btn-primary');
+    syncButton.textContent = 'Syncing...';
+    syncButton.disabled = true;
+    
     try {
       await apiService.syncOfflineChanges();
       await this.loadBooks();
+      await this.updateSyncStatus();
+      this.closeSyncReviewModal();
       this.showToast('Sync completed successfully', 'success');
     } catch (error) {
-      console.error('Manual sync failed:', error);
-      this.showToast('Sync failed', 'error');
-    } finally {
-      syncButton.textContent = '🔄 Sync Now';
+      console.error('Sync failed:', error);
+      this.showToast('Sync failed: ' + error.message, 'error');
+      syncButton.textContent = 'Retry Sync';
       syncButton.disabled = false;
     }
   }
@@ -734,6 +1225,295 @@ class MagpieApp {
     setTimeout(() => {
       toast.classList.remove('show');
     }, 3000);
+  }
+
+  // Authentication event handlers
+  handleLogin(user, error) {
+    if (error) {
+      console.error('Login failed:', error);
+      this.showToast(`Login failed: ${error}`, 'error');
+      return;
+    }
+
+    this.isAuthenticated = true;
+    this.currentUser = user;
+    this.updateAuthUI();
+    this.showToast(`Welcome back, ${user.name}!`, 'success');
+
+    // Refresh data with user context
+    this.loadBooks();
+  }
+
+  handleLogout() {
+    this.isAuthenticated = false;
+    this.currentUser = null;
+    this.updateAuthUI();
+    this.showToast('Logged out successfully', 'info');
+
+    // Refresh data (will show offline data only)
+    this.loadBooks();
+  }
+
+  // Authentication UI methods
+  updateAuthUI() {
+    const userProfile = document.getElementById('userProfile');
+    const loginSection = document.getElementById('loginSection');
+    const sharedTab = document.getElementById('sharedTab');
+    const sharedAuthMessage = document.getElementById('sharedAuthMessage');
+    const sharedContent = document.getElementById('sharedContent');
+
+    if (this.isAuthenticated && this.currentUser) {
+      // Show user profile
+      userProfile.classList.remove('hidden');
+      loginSection.classList.add('hidden');
+
+      // Update user info
+      document.getElementById('userName').textContent = this.currentUser.name;
+      document.getElementById('userEmail').textContent = this.currentUser.email;
+      document.getElementById('userAvatar').src =
+        this.currentUser.profilePictureUrl || 'images/default-avatar.png';
+
+      // Show shared tab content
+      sharedTab.classList.remove('disabled');
+      if (this.currentTab === 'shared') {
+        sharedAuthMessage.classList.add('hidden');
+        sharedContent.classList.remove('hidden');
+      }
+    } else {
+      // Show login section
+      userProfile.classList.add('hidden');
+      loginSection.classList.remove('hidden');
+
+      // Hide shared content, show auth message
+      sharedTab.classList.add('disabled');
+      if (this.currentTab === 'shared') {
+        sharedAuthMessage.classList.remove('hidden');
+        sharedContent.classList.add('hidden');
+      }
+    }
+  }
+
+  async showLogin() {
+    try {
+      if (window.magpieAuth) {
+        await window.magpieAuth.showLoginPrompt();
+      } else {
+        this.showToast('Authentication service not available', 'error');
+      }
+    } catch (error) {
+      console.error('Failed to show login:', error);
+      this.showToast('Failed to show login', 'error');
+    }
+  }
+
+  async logout() {
+    try {
+      if (window.magpieAuth) {
+        await window.magpieAuth.logout();
+      }
+    } catch (error) {
+      console.error('Logout failed:', error);
+      this.showToast('Logout failed', 'error');
+    }
+  }
+
+  // User settings methods
+  showUserSettings() {
+    if (!this.isAuthenticated) {
+      this.showToast('Please sign in to access settings', 'warning');
+      return;
+    }
+
+    const modal = document.getElementById('userSettingsModal');
+    modal.classList.add('active');
+
+    // Populate current settings
+    this.populateUserSettings();
+  }
+
+  closeUserSettings() {
+    const modal = document.getElementById('userSettingsModal');
+    modal.classList.remove('active');
+  }
+
+  populateUserSettings() {
+    if (!this.currentUser?.preferences) return;
+
+    const prefs = this.currentUser.preferences;
+
+    document.getElementById('booksPerPageSetting').value = prefs.booksPerPage || 20;
+    document.getElementById('defaultViewSetting').value = prefs.defaultView || 'grid';
+    document.getElementById('sortingStyleSetting').value = prefs.sortingStyle || 'alphabetical';
+    document.getElementById('themeSetting').value = prefs.theme || 'auto';
+    document.getElementById('sharingVisibilitySetting').value =
+      prefs.sharingVisibility || 'private';
+
+    document.getElementById('newBooksNotification').checked = prefs.notifications?.newBooks ?? true;
+    document.getElementById('loanRemindersNotification').checked =
+      prefs.notifications?.loanReminders ?? true;
+    document.getElementById('sharedCollectionsNotification').checked =
+      prefs.notifications?.sharedCollections ?? false;
+  }
+
+  async saveUserSettings(event) {
+    event.preventDefault();
+
+    if (!this.isAuthenticated) {
+      this.showToast('Please sign in to save settings', 'warning');
+      return;
+    }
+
+    try {
+      const preferences = {
+        booksPerPage: parseInt(document.getElementById('booksPerPageSetting').value),
+        defaultView: document.getElementById('defaultViewSetting').value,
+        sortingStyle: document.getElementById('sortingStyleSetting').value,
+        theme: document.getElementById('themeSetting').value,
+        sharingVisibility: document.getElementById('sharingVisibilitySetting').value,
+        notifications: {
+          newBooks: document.getElementById('newBooksNotification').checked,
+          loanReminders: document.getElementById('loanRemindersNotification').checked,
+          sharedCollections: document.getElementById('sharedCollectionsNotification').checked,
+        },
+      };
+
+      // Update user preferences via API
+      const response = await apiService.updateUserProfile({ preferences });
+
+      // Update local user data
+      this.currentUser.preferences = { ...this.currentUser.preferences, ...preferences };
+
+      this.closeUserSettings();
+      this.showToast('Settings saved successfully', 'success');
+
+      // Apply theme if changed
+      this.applyTheme(preferences.theme);
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+      this.showToast('Failed to save settings', 'error');
+    }
+  }
+
+  applyTheme(theme) {
+    const body = document.body;
+    body.classList.remove('theme-light', 'theme-dark');
+
+    if (theme === 'light') {
+      body.classList.add('theme-light');
+    } else if (theme === 'dark') {
+      body.classList.add('theme-dark');
+    }
+    // 'auto' uses system preference (default CSS)
+  }
+
+  // Book sharing methods
+  showShareModal() {
+    if (!this.isAuthenticated) {
+      this.showToast('Please sign in to share books', 'warning');
+      return;
+    }
+
+    const modal = document.getElementById('shareModal');
+    modal.classList.add('active');
+
+    // Populate books for selection
+    this.populateBookSelection();
+  }
+
+  closeShareModal() {
+    const modal = document.getElementById('shareModal');
+    modal.classList.remove('active');
+  }
+
+  populateBookSelection() {
+    const container = document.getElementById('bookSelectionContainer');
+    const userBooks = this.books.filter(book => book.ownerId === this.currentUser?.sub);
+
+    container.innerHTML = userBooks
+      .map(
+        book => `
+      <label class="book-selection-item">
+        <input type="checkbox" name="selectedBooks" value="${book.isbn}" />
+        <span class="book-title">${book.title}</span>
+        <span class="book-author">${book.authors.join(', ')}</span>
+      </label>
+    `
+      )
+      .join('');
+  }
+
+  async shareBooks(event) {
+    event.preventDefault();
+
+    try {
+      const emails = document
+        .getElementById('shareEmailsInput')
+        .value.split(',')
+        .map(email => email.trim())
+        .filter(email => email);
+
+      const selectedBooks = Array.from(
+        document.querySelectorAll('input[name="selectedBooks"]:checked')
+      ).map(input => input.value);
+
+      const permissions = {
+        canView: true,
+        canEdit: document.getElementById('canEditPermission').checked,
+        canShare: document.getElementById('canSharePermission').checked,
+      };
+
+      if (emails.length === 0) {
+        this.showToast('Please enter at least one email address', 'warning');
+        return;
+      }
+
+      if (selectedBooks.length === 0) {
+        this.showToast('Please select at least one book to share', 'warning');
+        return;
+      }
+
+      // Share books via API
+      for (const isbn of selectedBooks) {
+        await apiService.shareBook(isbn, { emails, permissions });
+      }
+
+      this.closeShareModal();
+      this.showToast(`Successfully shared ${selectedBooks.length} books`, 'success');
+    } catch (error) {
+      console.error('Failed to share books:', error);
+      this.showToast('Failed to share books', 'error');
+    }
+  }
+
+  async renderSharedBooks() {
+    if (!this.isAuthenticated) return;
+
+    try {
+      const sharedBooks = await apiService.getSharedBooks();
+      const container = document.getElementById('sharedBooksContainer');
+
+      if (sharedBooks.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <h3>No shared books yet</h3>
+            <p>Books shared with you or by you will appear here.</p>
+          </div>
+        `;
+        return;
+      }
+
+      // Render shared books with sharing info
+      container.innerHTML = sharedBooks.map(book => this.createBookCard(book, true)).join('');
+    } catch (error) {
+      console.error('Failed to load shared books:', error);
+      this.showToast('Failed to load shared books', 'error');
+    }
+  }
+
+  applySharedFilters() {
+    const filter = document.getElementById('sharedFilter').value;
+    // Implementation for filtering shared books
+    this.renderSharedBooks();
   }
 }
 
