@@ -54,7 +54,12 @@ export class BookController {
       console.log(`[DEBUG] getUserId returned: ${userId}`);
 
       const result = await this.bookUseCase.getAllBooks(criteria, sort, pagination, userId);
-      console.log(`[DEBUG] BookUseCase.getAllBooks returned:`, JSON.stringify(result, null, 2));
+      console.log(`[DEBUG] BookUseCase returned data array length: ${result.data.length}`);
+      console.log(`[DEBUG] BookUseCase returned total: ${result.total}`);
+      console.log(`[DEBUG] BookUseCase returned page: ${result.page}`);
+      console.log(`[DEBUG] BookUseCase returned limit: ${result.limit}`);
+      console.log(`[DEBUG] First book (if any):`, result.data[0] ? result.data[0].title : 'no books');
+      console.log(`[DEBUG] About to send response with ${result.data.length} books`);
       
       res.json(result);
     } catch (error) {

@@ -53,9 +53,12 @@ export class BookUseCase {
     userId?: string
   ): Promise<PaginatedResult<Book>> {
     console.log(`[DEBUG] BookUseCase.getAllBooks called with userId: ${userId}`);
-    console.log(`[DEBUG] BookUseCase.getAllBooks criteria:`, JSON.stringify(criteria, null, 2));
-    console.log(`[DEBUG] BookUseCase.getAllBooks sort:`, JSON.stringify(sort, null, 2));
-    console.log(`[DEBUG] BookUseCase.getAllBooks pagination:`, JSON.stringify(pagination, null, 2));
+    console.log(`[DEBUG] BookUseCase.getAllBooks criteria query: ${criteria?.query || 'none'}`);
+    console.log(`[DEBUG] BookUseCase.getAllBooks criteria genre: ${criteria?.genre || 'none'}`);
+    console.log(`[DEBUG] BookUseCase.getAllBooks sort field: ${sort?.field || 'default'}`);
+    console.log(`[DEBUG] BookUseCase.getAllBooks sort direction: ${sort?.direction || 'default'}`);
+    console.log(`[DEBUG] BookUseCase.getAllBooks pagination page: ${pagination?.page || 'default'}`);
+    console.log(`[DEBUG] BookUseCase.getAllBooks pagination limit: ${pagination?.limit || 'default'}`);
     
     const defaultPagination = { page: 1, limit: 20 };
     const defaultSort = { field: 'title' as const, direction: 'asc' as const };
@@ -67,7 +70,12 @@ export class BookUseCase {
       userId
     );
     
-    console.log(`[DEBUG] BookUseCase.getAllBooks repository returned:`, JSON.stringify(result, null, 2));
+    console.log(`[DEBUG] BookUseCase repository returned data length: ${result.data.length}`);
+    console.log(`[DEBUG] BookUseCase repository returned total: ${result.total}`);
+    if (result.data.length > 0) {
+      console.log(`[DEBUG] First book title: ${result.data[0].title}`);
+      console.log(`[DEBUG] First book ISBN: ${result.data[0].isbn}`);
+    }
     return result;
   }
 

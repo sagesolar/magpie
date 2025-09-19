@@ -16,6 +16,7 @@ import {
   PaginationOptions,
   PaginatedResult,
   ShareBookDto,
+  DEFAULT_OWNER_PERMISSIONS,
 } from '../domain/book.types';
 import { BookRepository } from './interfaces';
 
@@ -47,7 +48,9 @@ export class FirestoreBookRepository implements BookRepository {
   }
 
   private firestoreToBook(id: string, data: DocumentData): Book {
-    return {
+    console.log(`[DEBUG] Converting book: ${data.title} (${id})`);
+    
+    const book: Book = {
       isbn: id,
       title: data.title,
       authors: data.authors || [],
@@ -67,10 +70,13 @@ export class FirestoreBookRepository implements BookRepository {
       loanStatus: data.loanStatus,
       ownerId: data.ownerId,
       sharedWith: data.sharedWith || [],
-      permissions: data.permissions || [],
+      permissions: data.permissions || DEFAULT_OWNER_PERMISSIONS,
       createdAt: data.createdAt?.toDate() || new Date(),
       updatedAt: data.updatedAt?.toDate() || new Date(),
     };
+    
+    console.log(`[DEBUG] Converted book successfully: ${book.title}`);
+    return book;
   }
 
   private bookToFirestore(book: CreateBookDto | UpdateBookDto): DocumentData {
@@ -184,16 +190,6 @@ export class FirestoreBookRepository implements BookRepository {
 
     const snapshot: QuerySnapshot = await query.get();
     console.log(`[DEBUG] Firestore query returned ${snapshot.docs.length} documents`);
-    
-    // TEMPORARY DEBUG: Let's also query ALL books to see what's in the database
-    console.log(`[DEBUG] === CHECKING ALL BOOKS IN DATABASE ===`);
-    const allBooksSnapshot = await this.collection.get();
-    console.log(`[DEBUG] Total books in database: ${allBooksSnapshot.docs.length}`);
-    allBooksSnapshot.docs.forEach((doc, index) => {
-      const bookData = doc.data();
-      console.log(`[DEBUG] Book ${index + 1}: ${bookData.title} (ISBN: ${doc.id}, ownerId: "${bookData.ownerId}", type: ${typeof bookData.ownerId})`);
-    });
-    console.log(`[DEBUG] === END DATABASE CHECK ===`);
     
     const books = snapshot.docs.map(doc => {
       const bookData = this.firestoreToBook(doc.id, doc.data());
