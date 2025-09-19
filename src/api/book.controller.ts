@@ -15,6 +15,11 @@ export class BookController {
   // GET /books
   getAllBooks = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      console.log(`[DEBUG] getAllBooks called`);
+      console.log(`[DEBUG] Request headers:`, JSON.stringify(req.headers, null, 2));
+      console.log(`[DEBUG] Request userContext:`, JSON.stringify(req.userContext, null, 2));
+      console.log(`[DEBUG] Request user:`, JSON.stringify(req.user, null, 2));
+      
       const validatedQuery = BookSearchQuerySchema.parse({
         ...req.query,
         page: req.query.page ? parseInt(req.query.page as string) : undefined,
@@ -22,6 +27,8 @@ export class BookController {
         isFavourite: req.query.isFavourite ? req.query.isFavourite === 'true' : undefined,
         isLoaned: req.query.isLoaned ? req.query.isLoaned === 'true' : undefined,
       });
+
+      console.log(`[DEBUG] Validated query:`, JSON.stringify(validatedQuery, null, 2));
 
       const criteria = {
         query: validatedQuery.query,
@@ -44,10 +51,14 @@ export class BookController {
 
       // Get user ID from authenticated context (if available)
       const userId = getUserId(req) || undefined;
+      console.log(`[DEBUG] getUserId returned: ${userId}`);
 
       const result = await this.bookUseCase.getAllBooks(criteria, sort, pagination, userId);
+      console.log(`[DEBUG] BookUseCase.getAllBooks returned:`, JSON.stringify(result, null, 2));
+      
       res.json(result);
     } catch (error) {
+      console.error(`[DEBUG] Error in getAllBooks:`, error);
       next(error);
     }
   };

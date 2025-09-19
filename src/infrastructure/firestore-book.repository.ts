@@ -134,12 +134,20 @@ export class FirestoreBookRepository implements BookRepository {
     pagination?: PaginationOptions,
     userId?: string
   ): Promise<PaginatedResult<Book>> {
+    console.log(`[DEBUG] findAll called with userId: ${userId}`);
+    console.log(`[DEBUG] findAll called with criteria:`, JSON.stringify(criteria, null, 2));
+    console.log(`[DEBUG] findAll called with sort:`, JSON.stringify(sort, null, 2));
+    console.log(`[DEBUG] findAll called with pagination:`, JSON.stringify(pagination, null, 2));
+    
     let query: Query<DocumentData> = this.collection;
 
     // Apply ownership filtering first
     if (userId) {
+      console.log(`[DEBUG] Applying ownerId filter for user: ${userId}`);
       query = query.where('ownerId', '==', userId);
       // TODO: Also include books shared with this user - requires compound query
+    } else {
+      console.log(`[DEBUG] No userId provided, querying all books`);
     }
 
     // Apply filters
@@ -175,12 +183,19 @@ export class FirestoreBookRepository implements BookRepository {
     }
 
     const snapshot: QuerySnapshot = await query.get();
-    const books = snapshot.docs.map(doc => this.firestoreToBook(doc.id, doc.data()));
+    console.log(`[DEBUG] Firestore query returned ${snapshot.docs.length} documents`);
+    
+    const books = snapshot.docs.map(doc => {
+      const bookData = this.firestoreToBook(doc.id, doc.data());
+      console.log(`[DEBUG] Book found: ${bookData.title} (ISBN: ${bookData.isbn}, ownerId: ${bookData.ownerId})`);
+      return bookData;
+    });
 
     // Apply text search filter (Firestore doesn't have full-text search built-in)
     let filteredBooks = books;
     if (criteria?.query) {
       const searchTerm = criteria.query.toLowerCase();
+      console.log(`[DEBUG] Applying text search filter for: "${searchTerm}"`);
       filteredBooks = books.filter(
         book =>
           book.title.toLowerCase().includes(searchTerm) ||
@@ -189,11 +204,16 @@ export class FirestoreBookRepository implements BookRepository {
           book.publisher.toLowerCase().includes(searchTerm) ||
           (book.genre && book.genre.toLowerCase().includes(searchTerm))
       );
+      console.log(`[DEBUG] Text search filtered books to ${filteredBooks.length} results`);
     }
 
     // Get total count (this is expensive in Firestore, consider using a counter document)
+    console.log(`[DEBUG] Getting total count for all books in collection`);
     const totalSnapshot = await this.collection.get();
     const total = totalSnapshot.size;
+    console.log(`[DEBUG] Total books in collection: ${total}`);
+
+    console.log(`[DEBUG] Final result: ${filteredBooks.length} books returned, page: ${pagination?.page || 1}, limit: ${pagination?.limit || 20}`);
 
     return {
       data: filteredBooks,

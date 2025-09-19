@@ -52,15 +52,23 @@ export class BookUseCase {
     pagination?: PaginationOptions,
     userId?: string
   ): Promise<PaginatedResult<Book>> {
+    console.log(`[DEBUG] BookUseCase.getAllBooks called with userId: ${userId}`);
+    console.log(`[DEBUG] BookUseCase.getAllBooks criteria:`, JSON.stringify(criteria, null, 2));
+    console.log(`[DEBUG] BookUseCase.getAllBooks sort:`, JSON.stringify(sort, null, 2));
+    console.log(`[DEBUG] BookUseCase.getAllBooks pagination:`, JSON.stringify(pagination, null, 2));
+    
     const defaultPagination = { page: 1, limit: 20 };
     const defaultSort = { field: 'title' as const, direction: 'asc' as const };
 
-    return this.bookRepository.findAll(
+    const result = await this.bookRepository.findAll(
       criteria,
       sort || defaultSort,
       pagination || defaultPagination,
       userId
     );
+    
+    console.log(`[DEBUG] BookUseCase.getAllBooks repository returned:`, JSON.stringify(result, null, 2));
+    return result;
   }
 
   async getUserBooks(userId: string, includeShared: boolean = true): Promise<Book[]> {
