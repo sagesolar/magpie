@@ -446,7 +446,7 @@ class MagpieApp {
     }
 
     // Check if current user owns the book
-    const isOwner = book.ownerId === currentUser.email;
+    const isOwner = book.ownerId === currentUser.sub;
 
     // Check if book is shared with current user
     const isShared =
@@ -648,6 +648,8 @@ class MagpieApp {
       dateUpdated: new Date().toISOString(),
       isOfflineOnly: !navigator.onLine,
       needsSync: true,
+      // Set owner to current user's ID if authenticated
+      ownerId: this.currentUser?.sub || null,
     };
 
     try {
@@ -1060,7 +1062,7 @@ class MagpieApp {
 
   populateBookSelection() {
     const container = document.getElementById('bookSelectionContainer');
-    const userBooks = this.books.filter(book => book.ownerId === this.currentUser?.id);
+    const userBooks = this.books.filter(book => book.ownerId === this.currentUser?.sub);
 
     container.innerHTML = userBooks
       .map(
