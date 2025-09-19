@@ -360,8 +360,8 @@ class MagpieApp {
       }
 
       // Show if user owns the book (works offline with cached user identity)
-      if (book.ownerId === currentUser.sub) {
-        console.log(`[DEBUG] Book ${book.title} owned by user (${currentUser.sub}), showing`);
+      if (book.ownerId === currentUser.id) {
+        console.log(`[DEBUG] Book ${book.title} owned by user (${currentUser.id}), showing`);
         return true;
       }
 
@@ -976,16 +976,78 @@ class MagpieApp {
       return;
     }
 
-    // Check for pending changes
-    const pendingChanges = await bookDB.getUnsyncedChanges();
-    
-    if (pendingChanges.length === 0) {
-      this.showToast('No changes to sync', 'info');
+    if (!window.magpieAuth.isAuthenticated()) {
+      this.showToast('Please sign in to sync', 'error');
       return;
     }
 
-    // Show review modal instead of auto-syncing
-    this.showSyncReviewModal(pendingChanges);
+    // Check for pending changes
+    const pendingChanges = await bookDB.getUnsyncedChanges();
+    
+    if (pendingChanges.length > 0) {
+      // Show review modal for pending changes
+      console.log(`[DEBUG] Found ${pendingChanges.length} pending changes, showing review modal`);
+      this.showSyncReviewModal(pendingChanges);
+    } else {
+      // No pending changes, perform a refresh sync to get latest data from server
+      console.log('[DEBUG] No pending changes, performing refresh sync');
+      await this.performRefreshSync();
+    }
+  }
+
+  // Perform a refresh sync when no local changes exist
+  async performRefreshSync() {
+    try {
+      this.showToast('Syncing with server...', 'info');
+      this.updateSyncStatus(true); // Show syncing indicator
+
+      // Fetch latest books from server
+      console.log('[DEBUG] Fetching latest books from server');
+      const response = await fetch(window.API.getUrl('/api/books'), {
+        headers: window.magpieAuth.getAuthHeader()
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          this.showToast('Authentication required. Please sign in again.', 'error');
+          await window.magpieAuth.logout();
+          return;
+        }
+        throw new Error(`Server response: ${response.status}`);
+      }
+
+      const latestBooks = await response.json();
+      console.log(`[DEBUG] Received ${latestBooks.length} books from server`);
+
+      // Update local database with latest server data
+      for (const serverBook of latestBooks) {
+        await bookDB.syncBookFromServer(serverBook);
+      }
+
+      // Check if there are any books locally that are no longer on server
+      const localBooks = await bookDB.getAllBooks();
+      const serverISBNs = new Set(latestBooks.map(book => book.isbn));
+      
+      for (const localBook of localBooks) {
+        if (!serverISBNs.has(localBook.isbn) && localBook.ownerId === window.magpieAuth.getCurrentUser()?.id) {
+          // Book exists locally but not on server - user might have deleted it elsewhere
+          console.log(`[DEBUG] Book ${localBook.title} exists locally but not on server`);
+          // Could prompt user about this discrepancy, but for now just keep local copy
+        }
+      }
+
+      // Refresh the UI with updated data
+      await this.loadAndDisplayBooks();
+      
+      this.showToast('✅ Sync completed successfully', 'success');
+      console.log('[DEBUG] Refresh sync completed successfully');
+
+    } catch (error) {
+      console.error('Refresh sync failed:', error);
+      this.showToast(`Sync failed: ${error.message}`, 'error');
+    } finally {
+      this.updateSyncStatus(false); // Hide syncing indicator
+    }
   }
 
   // Sync review and confirmation

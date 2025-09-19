@@ -219,7 +219,7 @@ class MagpieAuth {
     
     // Store offline authentication state for persistent user identity
     const offlineAuthState = {
-      userId: user.sub,
+      userId: user.id,
       userEmail: user.email,
       userName: user.name,
       lastLoginAt: Date.now(),
@@ -291,7 +291,7 @@ class MagpieAuth {
     const offlineAuth = this.getOfflineAuthState();
     if (offlineAuth && offlineAuth.isOfflineCapable) {
       return {
-        sub: offlineAuth.userId,
+        id: offlineAuth.userId,
         email: offlineAuth.userEmail,
         name: offlineAuth.userName,
         isOfflineMode: true
