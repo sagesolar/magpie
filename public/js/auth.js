@@ -208,55 +208,118 @@ class MagpieAuth {
 
   // Store authentication data securely
   storeAuthData(token, user) {
-    // Use sessionStorage instead of localStorage for better security
-    // sessionStorage is cleared when tab closes, reducing attack window
-    sessionStorage.setItem(this.tokenKey, token);
-    sessionStorage.setItem(this.userKey, JSON.stringify(user));
+    // Store in localStorage for offline persistence
+    // This allows the app to work offline after initial login
+    localStorage.setItem(this.tokenKey, token);
+    localStorage.setItem(this.userKey, JSON.stringify(user));
     
     // Set expiration timestamp - 30 days
     const expiresAt = Date.now() + (30 * 24 * 60 * 60 * 1000); // 30 days
-    sessionStorage.setItem(this.tokenKey + '_expires', expiresAt.toString());
+    localStorage.setItem(this.tokenKey + '_expires', expiresAt.toString());
+    
+    // Store offline authentication state for persistent user identity
+    const offlineAuthState = {
+      userId: user.sub,
+      userEmail: user.email,
+      userName: user.name,
+      lastLoginAt: Date.now(),
+      isOfflineCapable: true
+    };
+    localStorage.setItem('magpie_offline_auth', JSON.stringify(offlineAuthState));
   }
 
   // Get stored authentication data
   getStoredAuth() {
-    const token = sessionStorage.getItem(this.tokenKey);
-    const userStr = sessionStorage.getItem(this.userKey);
-    const expiresAtStr = sessionStorage.getItem(this.tokenKey + '_expires');
+    const token = localStorage.getItem(this.tokenKey);
+    const userStr = localStorage.getItem(this.userKey);
+    const expiresAtStr = localStorage.getItem(this.tokenKey + '_expires');
     
-    // Check if token is expired
+    // For offline mode, we're more lenient with token expiration
+    // Token expiration doesn't prevent offline usage
+    let tokenExpired = false;
     if (expiresAtStr && Date.now() > parseInt(expiresAtStr)) {
-      this.clearAuthData();
-      return { token: null, user: null };
+      tokenExpired = true;
     }
     
     const user = userStr ? JSON.parse(userStr) : null;
-    return { token, user };
+    return { token, user, tokenExpired };
   }
 
-  // Check if user is authenticated
+  // Get offline authentication state
+  getOfflineAuthState() {
+    const offlineAuthStr = localStorage.getItem('magpie_offline_auth');
+    if (!offlineAuthStr) return null;
+    
+    try {
+      return JSON.parse(offlineAuthStr);
+    } catch (error) {
+      console.warn('Failed to parse offline auth state:', error);
+      return null;
+    }
+  }
+
+  // Check if user is authenticated (offline-friendly)
   isAuthenticated() {
-    const { token } = this.getStoredAuth();
-    return !!token;
+    // First check if we have a valid token for online operations
+    const { token, tokenExpired } = this.getStoredAuth();
+    if (token && !tokenExpired) {
+      return true;
+    }
+    
+    // If token is expired or missing, check offline authentication state
+    // This allows offline usage after initial login
+    const offlineAuth = this.getOfflineAuthState();
+    if (offlineAuth && offlineAuth.isOfflineCapable) {
+      // User was previously authenticated, allow offline usage
+      console.log('Using offline authentication for user:', offlineAuth.userEmail);
+      return true;
+    }
+    
+    return false;
   }
 
-  // Get current user
+  // Get current user (offline-friendly)
   getCurrentUser() {
-    const { user } = this.getStoredAuth();
-    return user;
+    const { user, tokenExpired } = this.getStoredAuth();
+    
+    // If we have user data and token is still valid, use it
+    if (user && !tokenExpired) {
+      return user;
+    }
+    
+    // For offline mode, reconstruct user from offline auth state
+    const offlineAuth = this.getOfflineAuthState();
+    if (offlineAuth && offlineAuth.isOfflineCapable) {
+      return {
+        sub: offlineAuth.userId,
+        email: offlineAuth.userEmail,
+        name: offlineAuth.userName,
+        isOfflineMode: true
+      };
+    }
+    
+    return null;
   }
 
   // Get authorization header for API calls
   getAuthHeader() {
-    const { token } = this.getStoredAuth();
-    return token ? { Authorization: `Bearer ${token}` } : {};
+    const { token, tokenExpired } = this.getStoredAuth();
+    
+    // Only provide auth header if token is valid and not expired
+    // For offline operations, we don't need auth headers
+    if (token && !tokenExpired) {
+      return { Authorization: `Bearer ${token}` };
+    }
+    
+    return {};
   }
 
   // Clear authentication data
   clearAuthData() {
-    sessionStorage.removeItem(this.tokenKey);
-    sessionStorage.removeItem(this.userKey);
-    sessionStorage.removeItem(this.tokenKey + '_expires');
+    localStorage.removeItem(this.tokenKey);
+    localStorage.removeItem(this.userKey);
+    localStorage.removeItem(this.tokenKey + '_expires');
+    localStorage.removeItem('magpie_offline_auth');
   }
 
   // Logout
@@ -280,9 +343,21 @@ class MagpieAuth {
     }
   }
 
-  // Validate token with backend
+  // Validate token with backend (offline-friendly)
   async validateToken() {
     if (!this.isAuthenticated()) return false;
+
+    const { token, tokenExpired } = this.getStoredAuth();
+    
+    // If we're offline or token is expired, use offline authentication
+    if (!navigator.onLine || tokenExpired || !token) {
+      const offlineAuth = this.getOfflineAuthState();
+      if (offlineAuth && offlineAuth.isOfflineCapable) {
+        console.log('Using offline authentication - no token validation needed');
+        return true;
+      }
+      return false;
+    }
 
     try {
       const response = await fetch(this.getApiUrl('/api/auth/validate'), {
@@ -297,16 +372,32 @@ class MagpieAuth {
       const result = await response.json();
 
       if (result.valid) {
-        // Update stored user data
-        this.storeAuthData(this.getStoredAuth().token, result.user);
+        // Update stored user data and refresh offline auth state
+        this.storeAuthData(token, result.user);
         return true;
       } else {
-        // Invalid token, logout
+        // Invalid token, but don't logout immediately if we have offline auth
+        const offlineAuth = this.getOfflineAuthState();
+        if (offlineAuth && offlineAuth.isOfflineCapable) {
+          console.log('Token invalid but using offline authentication');
+          return true;
+        }
+        
+        // No offline auth available, logout
         await this.logout();
         return false;
       }
     } catch (error) {
       console.error('Token validation error:', error);
+      
+      // If we're offline or there's a network error, use offline auth
+      const offlineAuth = this.getOfflineAuthState();
+      if (offlineAuth && offlineAuth.isOfflineCapable) {
+        console.log('Token validation failed but using offline authentication');
+        return true;
+      }
+      
+      // No offline auth available, logout
       await this.logout();
       return false;
     }
@@ -368,10 +459,21 @@ class MagpieAuth {
 // Initialize global auth instance
 window.magpieAuth = new MagpieAuth();
 
-// Auto-validate token on page load
+// Auto-validate token on page load (offline-friendly)
 document.addEventListener('DOMContentLoaded', async () => {
   if (window.magpieAuth.isAuthenticated()) {
-    await window.magpieAuth.validateToken();
+    // Only validate token if we're online
+    if (navigator.onLine) {
+      console.log('Online - validating token with server');
+      await window.magpieAuth.validateToken();
+    } else {
+      console.log('Offline - using cached authentication');
+      // Check if we have offline auth state
+      const offlineAuth = window.magpieAuth.getOfflineAuthState();
+      if (offlineAuth && offlineAuth.isOfflineCapable) {
+        console.log('Offline authentication available for:', offlineAuth.userEmail);
+      }
+    }
   }
 });
 

@@ -233,3 +233,199 @@ body {
     text-align: center;
   }
 }
+
+/* Sync Review Modal Styles */
+.sync-review-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.sync-review-content {
+  background: white;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 700px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.sync-review-header {
+  position: relative;
+  padding: 24px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.sync-review-header h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 8px;
+}
+
+.sync-review-header p {
+  color: #6b7280;
+  margin: 0;
+}
+
+.sync-review-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.sync-review-close:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.sync-review-body {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.changes-section {
+  margin-bottom: 24px;
+}
+
+.changes-section h4 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.change-item {
+  background: #f9fafb;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 8px;
+  border-left: 3px solid #e5e7eb;
+}
+
+.change-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.change-action {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+.change-timestamp {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.change-book {
+  color: #374151;
+}
+
+.change-book strong {
+  font-weight: 600;
+}
+
+.change-book small {
+  color: #6b7280;
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: #3b82f6;
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 0.875rem;
+  padding: 2px 0;
+  margin-left: 8px;
+}
+
+.btn-link:hover {
+  color: #1d4ed8;
+}
+
+.sync-review-footer {
+  padding: 24px;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+/* Sync Badge Styles */
+.sync-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: #ef4444;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 10px;
+  min-width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.has-pending-changes {
+  animation: pulse-sync 2s infinite;
+}
+
+@keyframes pulse-sync {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+/* Responsive sync modal */
+@media (max-width: 768px) {
+  .sync-review-content {
+    width: 95%;
+    max-height: 90vh;
+  }
+  
+  .sync-review-header,
+  .sync-review-body,
+  .sync-review-footer {
+    padding: 16px;
+  }
+  
+  .sync-review-footer {
+    flex-direction: column;
+  }
+  
+  .sync-review-footer .btn {
+    width: 100%;
+  }
+}

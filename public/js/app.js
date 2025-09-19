@@ -37,6 +37,11 @@ class MagpieApp {
       this.populateGenreFilter();
       this.updateVersionInfo();
 
+      // Check for pending changes (async)
+      this.updateSyncStatus().catch(error => {
+        console.warn('Failed to update sync status:', error);
+      });
+
       // Pre-cache cover images for offline use
       this.cacheCoverImages();
 
@@ -110,13 +115,10 @@ class MagpieApp {
       this.books = await bookDB.getAllBooks();
       this.filteredBooks = [...this.books];
 
-      // Try to sync with server if online
+      // Try to sync with server if online (but don't auto-sync changes)
       if (navigator.onLine) {
         try {
-          // First sync any offline changes
-          await apiService.syncOfflineChanges();
-
-          // Then fetch latest books from server
+          // Only fetch latest books from server, don't auto-sync changes
           const response = await apiService.getAllBooks();
           if (response && response.data) {
             // Save fetched books to local database using batch method
@@ -124,16 +126,19 @@ class MagpieApp {
             console.log(`Fetched ${response.data.length} books from server`);
           }
 
-          // Reload from local database after server sync
+          // Reload from local database after server fetch
           this.books = await bookDB.getAllBooks();
           this.filteredBooks = [...this.books];
         } catch (error) {
-          console.warn('Sync failed, using offline data:', error);
+          console.warn('Server fetch failed, using offline data:', error);
         }
       }
 
       this.renderBooks();
       this.populateGenreFilter();
+      
+      // Update sync status after loading
+      await this.updateSyncStatus();
     } catch (error) {
       console.error('Failed to load books:', error);
       this.showToast('Failed to load books', 'error');
@@ -169,9 +174,58 @@ class MagpieApp {
       syncButton.style.display = 'block';
     } else {
       statusDot.classList.add('offline');
-      statusText.textContent = 'Offline';
+      
+      // Show different offline status based on authentication
+      const isAuthenticated = window.magpieAuth && window.magpieAuth.isAuthenticated();
+      if (isAuthenticated) {
+        statusText.textContent = 'Offline Mode';
+      } else {
+        statusText.textContent = 'Offline';
+      }
+      
       syncButton.style.display = 'none';
     }
+  }
+
+  // Update sync status and show pending changes count
+  async updateSyncStatus() {
+    if (!navigator.onLine) return;
+    
+    const syncButton = document.getElementById('syncButton');
+    const syncBadge = document.getElementById('syncBadge') || this.createSyncBadge();
+    
+    try {
+      const pendingChanges = await bookDB.getUnsyncedChanges();
+      const changeCount = pendingChanges.length;
+      
+      if (changeCount > 0) {
+        syncBadge.textContent = changeCount;
+        syncBadge.style.display = 'block';
+        syncButton.title = `${changeCount} pending changes - Click to review and sync`;
+        syncButton.classList.add('has-pending-changes');
+      } else {
+        syncBadge.style.display = 'none';
+        syncButton.title = 'Sync with server';
+        syncButton.classList.remove('has-pending-changes');
+      }
+    } catch (error) {
+      console.error('Failed to check sync status:', error);
+    }
+  }
+
+  // Create sync notification badge
+  createSyncBadge() {
+    const syncButton = document.getElementById('syncButton');
+    const badge = document.createElement('span');
+    badge.id = 'syncBadge';
+    badge.className = 'sync-badge';
+    badge.style.display = 'none';
+    
+    // Position badge relative to sync button
+    syncButton.style.position = 'relative';
+    syncButton.appendChild(badge);
+    
+    return badge;
   }
 
   updateVersionInfo() {
@@ -239,23 +293,39 @@ class MagpieApp {
   renderBooks() {
     const container = document.getElementById('booksContainer');
 
+    console.log(`[DEBUG] renderBooks: Starting with ${this.filteredBooks.length} filtered books`);
+
     // Filter books based on authentication and ownership
     const visibleBooks = this.filterUserAccessibleBooks(this.filteredBooks);
 
+    console.log(`[DEBUG] renderBooks: After filtering, ${visibleBooks.length} visible books`);
+
     if (!visibleBooks.length) {
       const isAuthenticated = window.magpieAuth && window.magpieAuth.isAuthenticated();
-      const emptyMessage = isAuthenticated ? 'No books in your collection' : 'No books found';
-      const emptySubtext = isAuthenticated
-        ? 'Start building your personal collection by adding books!'
-        : 'Start building your collection by adding books!';
-
-      container.innerHTML = `
-        <div class="empty-state">
-          <h3>${emptyMessage}</h3>
-          <p>${emptySubtext}</p>
-          <button class="btn btn-primary" onclick="app.showAddBookModal()">Add Your First Book</button>
-        </div>
-      `;
+      console.log(`[DEBUG] renderBooks: No visible books, authenticated: ${isAuthenticated}`);
+      
+      if (isAuthenticated) {
+        // User is authenticated but has no books
+        const currentUser = window.magpieAuth.getCurrentUser();
+        const offlineNote = currentUser?.isOfflineMode ? ' (Offline Mode)' : '';
+        
+        container.innerHTML = `
+          <div class="empty-state">
+            <h3>No books in your collection${offlineNote}</h3>
+            <p>Start building your personal collection by adding books!</p>
+            <button class="btn btn-primary" onclick="app.showAddBookModal()">Add Your First Book</button>
+          </div>
+        `;
+      } else {
+        // User is not authenticated
+        container.innerHTML = `
+          <div class="empty-state">
+            <h3>Please sign in to view your books</h3>
+            <p>Sign in with Google to access your personal book collection.</p>
+            <button class="btn btn-primary" onclick="app.showLogin()">Sign In</button>
+          </div>
+        `;
+      }
       return;
     }
 
@@ -264,35 +334,49 @@ class MagpieApp {
   }
 
   filterUserAccessibleBooks(books) {
-    // If not authenticated, show all books (legacy mode)
+    // Check authentication state (works offline)
     if (!window.magpieAuth || !window.magpieAuth.isAuthenticated()) {
-      return books;
+      console.log('[DEBUG] Not authenticated, showing no books');
+      return [];
     }
 
     const currentUser = window.magpieAuth.getCurrentUser();
     if (!currentUser) {
-      return books;
+      console.log('[DEBUG] No current user, showing no books');
+      return [];
     }
 
+    console.log('[DEBUG] Current user:', currentUser);
+    console.log('[DEBUG] Filtering books. Total books:', books.length);
+
     // Filter books that user owns or has access to
-    return books.filter(book => {
-      // If book has no owner (legacy books), show them
+    const filteredBooks = books.filter(book => {
+      console.log(`[DEBUG] Checking book: ${book.title} (ownerId: ${book.ownerId})`);
+      
+      // All books must have an owner - no legacy books
       if (!book.ownerId) {
-        return true;
+        console.log(`[DEBUG] Book ${book.title} has no owner, hiding (no legacy books)`);
+        return false;
       }
 
-      // Show if user owns the book
+      // Show if user owns the book (works offline with cached user identity)
       if (book.ownerId === currentUser.sub) {
+        console.log(`[DEBUG] Book ${book.title} owned by user (${currentUser.sub}), showing`);
         return true;
       }
 
       // Show if book is shared with user
       if (book.sharedWith && book.sharedWith.some(share => share.userEmail === currentUser.email)) {
+        console.log(`[DEBUG] Book ${book.title} shared with user, showing`);
         return true;
       }
 
+      console.log(`[DEBUG] Book ${book.title} not accessible to user, hiding`);
       return false;
     });
+
+    console.log(`[DEBUG] Filtered ${filteredBooks.length} books from ${books.length} total`);
+    return filteredBooks;
   }
 
   renderBookCard(book) {
@@ -536,16 +620,30 @@ class MagpieApp {
 
   // Book Actions
   async toggleFavourite(isbn) {
+    // Check authentication (works offline)
+    if (!this.isAuthenticated || !this.currentUser) {
+      this.showToast('Please sign in to manage favourites', 'warning');
+      return;
+    }
+
     try {
       const book = await bookDB.getBook(isbn);
       if (book) {
+        // Check if user owns this book (works with offline user identity)
+        if (book.ownerId !== this.currentUser.sub) {
+          this.showToast('You can only modify your own books', 'error');
+          return;
+        }
+
         book.isFavourite = !book.isFavourite;
+        book.needsSync = true; // Mark for sync when online
         await bookDB.saveBook(book);
         await this.loadBooks();
-        this.showToast(
-          `Book ${book.isFavourite ? 'added to' : 'removed from'} favourites`,
-          'success'
-        );
+        await this.updateSyncStatus(); // Update sync badge
+        
+        const action = book.isFavourite ? 'added to' : 'removed from';
+        const syncNote = !navigator.onLine ? ' (will sync when online)' : '';
+        this.showToast(`Book ${action} favourites${syncNote}`, 'success');
       }
     } catch (error) {
       console.error('Toggle favourite failed:', error);
@@ -554,13 +652,30 @@ class MagpieApp {
   }
 
   async toggleRead(isbn) {
+    // Check authentication (works offline)
+    if (!this.isAuthenticated || !this.currentUser) {
+      this.showToast('Please sign in to manage read status', 'warning');
+      return;
+    }
+
     try {
       const book = await bookDB.getBook(isbn);
       if (book) {
+        // Check if user owns this book (works with offline user identity)
+        if (book.ownerId !== this.currentUser.sub) {
+          this.showToast('You can only modify your own books', 'error');
+          return;
+        }
+
         book.isRead = !book.isRead;
+        book.needsSync = true; // Mark for sync when online
         await bookDB.saveBook(book);
         await this.loadBooks();
-        this.showToast(`Book marked as ${book.isRead ? 'read' : 'unread'}`, 'success');
+        await this.updateSyncStatus(); // Update sync badge
+        
+        const status = book.isRead ? 'read' : 'unread';
+        const syncNote = !navigator.onLine ? ' (will sync when online)' : '';
+        this.showToast(`Book marked as ${status}${syncNote}`, 'success');
       }
     } catch (error) {
       console.error('Toggle read failed:', error);
@@ -569,12 +684,28 @@ class MagpieApp {
   }
 
   async deleteBook(isbn) {
+    // Check authentication (works offline)
+    if (!this.isAuthenticated || !this.currentUser) {
+      this.showToast('Please sign in to delete books', 'warning');
+      return;
+    }
+
+    // Check if user owns this book (works with offline user identity)
+    const book = await bookDB.getBook(isbn);
+    if (book && book.ownerId !== this.currentUser.sub) {
+      this.showToast('You can only delete your own books', 'error');
+      return;
+    }
+
     if (!confirm('Are you sure you want to delete this book?')) return;
 
     try {
       await bookDB.deleteBook(isbn);
       await this.loadBooks();
-      this.showToast('Book deleted successfully', 'success');
+      await this.updateSyncStatus(); // Update sync badge
+      
+      const syncNote = !navigator.onLine ? ' (will sync when online)' : '';
+      this.showToast(`Book deleted successfully${syncNote}`, 'success');
     } catch (error) {
       console.error('Delete failed:', error);
       this.showToast('Failed to delete book', 'error');
@@ -583,6 +714,12 @@ class MagpieApp {
 
   // Modal Management
   showAddBookModal() {
+    // Check authentication (works offline)
+    if (!this.isAuthenticated || !this.currentUser) {
+      this.showToast('Please sign in to add books', 'warning');
+      return;
+    }
+
     document.getElementById('modalTitle').textContent = 'Add New Book';
     document.getElementById('bookForm').reset();
     document.getElementById('bookModal').classList.add('active');
@@ -590,9 +727,21 @@ class MagpieApp {
   }
 
   async showEditModal(isbn) {
+    // Check authentication (works offline)
+    if (!this.isAuthenticated || !this.currentUser) {
+      this.showToast('Please sign in to edit books', 'warning');
+      return;
+    }
+
     try {
       const book = await bookDB.getBook(isbn);
       if (!book) return;
+
+      // Check if user owns this book (works with offline user identity)
+      if (book.ownerId !== this.currentUser.sub) {
+        this.showToast('You can only edit your own books', 'error');
+        return;
+      }
 
       document.getElementById('modalTitle').textContent = 'Edit Book';
       document.getElementById('isbnInput').value = book.isbn;
@@ -625,6 +774,12 @@ class MagpieApp {
   async saveBook(event) {
     event.preventDefault();
 
+    // Check authentication (works offline)
+    if (!this.isAuthenticated || !this.currentUser) {
+      this.showToast('Please sign in to save books', 'warning');
+      return;
+    }
+
     const formData = new FormData(event.target);
     const bookData = {
       isbn: document.getElementById('isbnInput').value.trim(),
@@ -647,16 +802,19 @@ class MagpieApp {
       dateAdded: this.currentBook?.dateAdded || new Date().toISOString(),
       dateUpdated: new Date().toISOString(),
       isOfflineOnly: !navigator.onLine,
-      needsSync: true,
-      // Set owner to current user's ID if authenticated
-      ownerId: this.currentUser?.sub || null,
+      needsSync: true, // Always mark for sync
+      // Set owner to current authenticated user (works offline)
+      ownerId: this.currentUser.sub,
     };
 
     try {
       await bookDB.saveBook(bookData);
       await this.loadBooks();
+      await this.updateSyncStatus(); // Update sync badge
       this.closeModal();
-      this.showToast('Book saved successfully', 'success');
+      
+      const syncNote = !navigator.onLine ? ' (will sync when online)' : '';
+      this.showToast(`Book saved successfully${syncNote}`, 'success');
     } catch (error) {
       console.error('Save failed:', error);
       this.showToast('Failed to save book', 'error');
@@ -818,19 +976,164 @@ class MagpieApp {
       return;
     }
 
-    const syncButton = document.getElementById('syncButton');
-    syncButton.textContent = '🔄 Syncing...';
-    syncButton.disabled = true;
+    // Check for pending changes
+    const pendingChanges = await bookDB.getUnsyncedChanges();
+    
+    if (pendingChanges.length === 0) {
+      this.showToast('No changes to sync', 'info');
+      return;
+    }
 
+    // Show review modal instead of auto-syncing
+    this.showSyncReviewModal(pendingChanges);
+  }
+
+  // Sync review and confirmation
+  showSyncReviewModal(pendingChanges) {
+    const modal = document.createElement('div');
+    modal.className = 'sync-review-modal';
+    modal.id = 'syncReviewModal';
+    
+    const changesSummary = this.createChangesSummary(pendingChanges);
+    
+    modal.innerHTML = `
+      <div class="sync-review-content">
+        <div class="sync-review-header">
+          <h3>Review Offline Changes</h3>
+          <p>Review the following ${pendingChanges.length} changes before syncing to the server:</p>
+          <button class="sync-review-close" onclick="app.closeSyncReviewModal()">&times;</button>
+        </div>
+        <div class="sync-review-body">
+          ${changesSummary}
+        </div>
+        <div class="sync-review-footer">
+          <button class="btn btn-secondary" onclick="app.closeSyncReviewModal()">Cancel</button>
+          <button class="btn btn-primary" onclick="app.confirmSync()">Sync ${pendingChanges.length} Changes</button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+  }
+
+  createChangesSummary(pendingChanges) {
+    const grouped = this.groupChangesByAction(pendingChanges);
+    let summary = '';
+    
+    // Created books
+    if (grouped.create.length > 0) {
+      summary += `
+        <div class="changes-section">
+          <h4>📚 Books to Create (${grouped.create.length})</h4>
+          <div class="changes-list">
+            ${grouped.create.map(change => this.renderChangeItem(change)).join('')}
+          </div>
+        </div>
+      `;
+    }
+    
+    // Updated books
+    if (grouped.update.length > 0) {
+      summary += `
+        <div class="changes-section">
+          <h4>✏️ Books to Update (${grouped.update.length})</h4>
+          <div class="changes-list">
+            ${grouped.update.map(change => this.renderChangeItem(change)).join('')}
+          </div>
+        </div>
+      `;
+    }
+    
+    // Deleted books
+    if (grouped.delete.length > 0) {
+      summary += `
+        <div class="changes-section">
+          <h4>🗑️ Books to Delete (${grouped.delete.length})</h4>
+          <div class="changes-list">
+            ${grouped.delete.map(change => this.renderChangeItem(change)).join('')}
+          </div>
+        </div>
+      `;
+    }
+    
+    return summary || '<p>No changes to sync.</p>';
+  }
+
+  groupChangesByAction(changes) {
+    return {
+      create: changes.filter(c => c.action === 'create'),
+      update: changes.filter(c => c.action === 'update'),
+      delete: changes.filter(c => c.action === 'delete')
+    };
+  }
+
+  renderChangeItem(change) {
+    const book = change.data;
+    const timestamp = new Date(change.timestamp).toLocaleString();
+    
+    const actionIcons = {
+      create: '➕',
+      update: '✏️',
+      delete: '🗑️'
+    };
+    
+    const actionColors = {
+      create: '#10b981',
+      update: '#f59e0b', 
+      delete: '#ef4444'
+    };
+    
+    return `
+      <div class="change-item" style="border-left: 3px solid ${actionColors[change.action]}">
+        <div class="change-header">
+          <span class="change-action">${actionIcons[change.action]} ${change.action.toUpperCase()}</span>
+          <span class="change-timestamp">${timestamp}</span>
+        </div>
+        <div class="change-book">
+          <strong>${book.title || 'Unknown Title'}</strong>
+          ${book.authors ? `<br><small>by ${book.authors.join(', ')}</small>` : ''}
+          <br><small>ISBN: ${book.isbn}</small>
+          ${change.action !== 'delete' ? `<button class="btn btn-link" onclick="app.viewBookDetails('${book.isbn}')">View Details</button>` : ''}
+        </div>
+      </div>
+    `;
+  }
+
+  async viewBookDetails(isbn) {
+    try {
+      const book = await bookDB.getBook(isbn);
+      if (book) {
+        // Show book details in a modal or expand inline
+        alert(`Book Details:\n\nTitle: ${book.title}\nAuthors: ${book.authors.join(', ')}\nISBN: ${book.isbn}\nGenre: ${book.genre || 'N/A'}\nRead: ${book.isRead ? 'Yes' : 'No'}\nFavourite: ${book.isFavourite ? 'Yes' : 'No'}`);
+      }
+    } catch (error) {
+      console.error('Failed to load book details:', error);
+      this.showToast('Failed to load book details', 'error');
+    }
+  }
+
+  closeSyncReviewModal() {
+    const modal = document.getElementById('syncReviewModal');
+    if (modal) {
+      document.body.removeChild(modal);
+    }
+  }
+
+  async confirmSync() {
+    const syncButton = document.querySelector('.sync-review-footer .btn-primary');
+    syncButton.textContent = 'Syncing...';
+    syncButton.disabled = true;
+    
     try {
       await apiService.syncOfflineChanges();
       await this.loadBooks();
+      await this.updateSyncStatus();
+      this.closeSyncReviewModal();
       this.showToast('Sync completed successfully', 'success');
     } catch (error) {
-      console.error('Manual sync failed:', error);
-      this.showToast('Sync failed', 'error');
-    } finally {
-      syncButton.textContent = '🔄 Sync Now';
+      console.error('Sync failed:', error);
+      this.showToast('Sync failed: ' + error.message, 'error');
+      syncButton.textContent = 'Retry Sync';
       syncButton.disabled = false;
     }
   }
