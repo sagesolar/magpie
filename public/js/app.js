@@ -282,7 +282,7 @@ class MagpieApp {
       }
 
       // Show if user owns the book
-      if (book.ownerId === currentUser.email) {
+      if (book.ownerId === currentUser.sub) {
         return true;
       }
 
